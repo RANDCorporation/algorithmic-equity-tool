@@ -4,10 +4,31 @@ library(shinyWidgets)
 #note, dev branch has 3 cosmetic chaneges: overall color bar plot, threshold label, remove threshold legend
 
 ui <- navbarPage(
-  title = "RAND ML Equity Tool",
-  theme = shinythemes::shinytheme("cerulean"),
+  title = "RAND Algorithmic Equity Tool",
+  theme = shinythemes::shinytheme("flatly"),
+  # add this
+  tags$head(tags$style(HTML('.navbar-static-top {background-color: #1475AD;}',
+                            '.navbar-default .navbar-nav>.active>a {background-color: #1475AD;}'))),
+  #.navbar-default {
+  #  background-color: #b1b1b3 !important;
+  #}
   position = c("fixed-top"),
   collapsible = TRUE,
+  tabPanel(
+    "About",
+    tags$br(),
+    tags$br(),
+    tags$br(),
+    tags$br(),
+    tags$br(),
+    h4("About this tool."
+    ),
+    tags$br(),
+    h3("Related Links"),
+    h4("Accompanying research report:"),
+    h4("GitHub repository with source code and tutorial:"),
+    tags$br(),
+  ),
   tabPanel(
     "Comparing Models",
     tags$br(),
@@ -32,7 +53,7 @@ ui <- navbarPage(
                    tags$style(".well {
                     background-color:	#fcfcfc;
                     border-width: 1px;
-                    border-color: #7fdbd6;
+                    border-color: #1475AD;
                     height: 85vh; 
                     overflow-y: auto;
                     color: #000000;
@@ -63,7 +84,7 @@ ui <- navbarPage(
       
       mainPanel(
         tags$head(tags$style("#mdls_acc_per_plt{height:75vh !important;}")),
-        plotOutput("mdls_acc_per_plt", width = "100%"),
+        shinycssloaders::withSpinner(plotOutput("mdls_acc_per_plt", width = "100%")),
         tags$br()
         
       ),
@@ -86,7 +107,7 @@ ui <- navbarPage(
                    tags$style(".well {
                     background-color:	#fcfcfc;
                     border-width: 1px;
-                    border-color: #7fdbd6;
+                    border-color: #1475AD;
                     height: 85vh; 
                     overflow-y: auto;
                     color: #000000;
@@ -125,9 +146,9 @@ ui <- navbarPage(
         
         tags$head(tags$style("#threshold{height:30vh !important;}")),
         tags$head(tags$style("#acc_per_plt{height:55vh !important;}")),
-        plotOutput("threshold", height = "400px"), 
+        shinycssloaders::withSpinner(plotOutput("threshold", height = "400px")), 
         tags$br(),
-        plotOutput("acc_per_plt", height = "800px"),
+        shinycssloaders::withSpinner(plotOutput("acc_per_plt", height = "800px")),
         tags$br()
         
       ),
@@ -149,7 +170,7 @@ ui <- navbarPage(
                    tags$style(".well {
                     background-color:	#fcfcfc;
                     border-width: 1px;
-                    border-color: #7fdbd6;
+                    border-color: #1475AD;
                     height: 85vh; 
                     overflow-y: auto;
                     color: #000000;
@@ -168,8 +189,8 @@ ui <- navbarPage(
                    tags$br(),
                    tags$b("Before Uploading Data"),
                    tags$ul(
-                   tags$li("Outcome variables must be labeled as `Y` in order for it to not be included in pre-preprocessing algorithm."),
-                   tags$li("The protected
+                     tags$li("Outcome variables must be labeled as `Y` in order for it to not be included in pre-preprocessing algorithm."),
+                     tags$li("The protected
            variable must be labeled as 'G' for it to be used appropriately in the pre-processing script.")
                    ),
                    tags$i("Note: Any variables named 'Yhat' or 'Prob' will be dropped."),
@@ -178,7 +199,7 @@ ui <- navbarPage(
                    tags$b("Upload Data"),
                    fileInput("preprocess_data", label = NULL, accept = '.csv'),
                    tags$b("Select Pre-Process Method"),
-                   selectInput("preprocess", label = NULL, choices = c("Select Method", "Johndrow and Lum (2019)"), selected = "Select Method"),
+                   selectInput("preprocess", label = NULL, choices = c("Johndrow and Lum (2019)")),
                    tags$b("Compare Original/Pre-Processed Variables"),
                    uiOutput("var_stats")
                    
@@ -244,26 +265,6 @@ ui <- navbarPage(
     h3("Generate Pre-Processed Data tab"),
     tags$br(),
     uiOutput("show_preprocess_btwn")
-  ),
-  tabPanel(
-    "Download Source Code",
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    titlePanel("Downloading application source code and tutorial"),
-    tags$br(),
-    h3("Download code"),
-    h4("Download application source code here. Downloading application source code will allow 
-       you to run this application locally. This may be preferred when the required data cannot be exported, for instance, due to privacy considerations."
-    ),
-    tags$br(),
-    downloadButton('codeDownload', 'Download'),
-    h3("Download tutorial"),
-    h4("Download the accompanying tutorial here. This tutorial walks through detailed examples for each of tool's functions."
-    ),
-    tags$br(),
-    downloadButton('tutorialDownload', 'Download')
   ),
   tabPanel(
     "Descriptions",
