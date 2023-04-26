@@ -21,13 +21,29 @@ ui <- navbarPage(
     tags$br(),
     tags$br(),
     tags$br(),
-    h4("About this tool."
-    ),
+    h3("Introduction"),
+    h4("In recent years, there has been a growing awareness that Machine Learning (ML) algorithms can reinforce or exacerbate human biases. 
+       The RAND Algorithmic Equity Tool was developed to help identify and mitigate biases in algorithms that assist in decision-making processes. 
+       In particular, the tool helps users visualize tradeoffs, such as diminished predictive accuracy, that are inherent to enforcing equity. 
+       This tool was produced as part of a research effort for RAND, with the goal of assisting the Department of Defense (DoD) as they invest in the development of ML algorithms for a growing number applications. 
+       The companion report further discusses this tool and its creation"
+       ),
+    h4("While ML algorithms are deployed in a wide variety of applications, this tool is specifically designed for a algorithms that assist in decision-making processes. 
+       In particular, this tool is useful when algorithmic output is used to influence binary decisions about individuals. 
+       A hypothetical example within this framework is an algorithm that produces individual-level employee performance scores, which are subsequently considered in promotional decisions."
+       ),
     tags$br(),
     h3("Related Links"),
-    h4("Accompanying research report:"),
-    h4("GitHub repository with source code and tutorial:"),
+    tags$a(href = "https://www.rand.org/pubs/research_reports/RR2708.html", 
+           "Accompanying research report"),
     tags$br(),
+    tags$a(href = "https://github.com/RANDCorporation/algorithmic-equity-tool", 
+           "GitHub repository with source code and tutorial"),
+    tags$br(),
+    h3('Contact'),
+    h4('Please reach out for any questions or issues related to this tool:'),
+    tags$a(href = "https://www.rand.org/about/people/s/snoke_joshua.html", 
+           "Joshua Snoke"),
   ),
   tabPanel(
     "Comparing Models",
