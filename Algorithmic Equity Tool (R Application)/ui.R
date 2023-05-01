@@ -34,7 +34,7 @@ ui <- navbarPage(
        ),
     tags$br(),
     h3("Related Links"),
-    tags$a(href = "https://www.rand.org/pubs/research_reports/RR2708.html", 
+    tags$a(href = "https://www.rand.org/pubs/research_reports/RRA1542-1.html", 
            "Accompanying research report"),
     tags$br(),
     tags$a(href = "https://github.com/RANDCorporation/algorithmic-equity-tool", 
@@ -293,7 +293,7 @@ ui <- navbarPage(
     tags$br(),
     h4("This tab contains definitions of terms referred to in the previous tabs.
        \\(Y\\) is the true outcome, \\(\\hat{Y}\\) is the predicted outcome, and \\(G\\) is the sensitive attribute.
-       For more detail on the methods implemented in this tool, please refer to Cabreros, et al. (2022)."),
+       For more detail on the methods implemented in this tool, please refer to Cabreros, et al. (2023)."),
     h2("Performance Metrics"),
     h4("Overall performance metrics are calculated on the whole data set. Subgroup performance metrics are computed for each subpopulation defined by a level of the sensitive attribute \\(G\\)."),
     h3("Accuracy"),
@@ -316,7 +316,7 @@ ui <- navbarPage(
     uiOutput("npv_form"),
     h2("Post-Processing Methods"),
     h4("The post processing methods find thresholds for positive prediction for each level of \\( G \\) that minimize differential performance while optimizing overall performance. 
-        Further details of this optimization procedure are found in Cabreros, et al. (2022). Each of the post-processing options available are described below."),
+        Further details of this optimization procedure are found in Cabreros, et al. (2023). Each of the post-processing options available are described below."),
     h3("Statistical Parity PP"),
     h4("This method finds optimal thresholds such that the Predicted Positive Rate is equal across each level of \\( G \\)."),
     uiOutput("sp_form"), 
@@ -342,10 +342,12 @@ ui <- navbarPage(
        joint independence, which is not implemented as of the current version of the tool."),
     tags$br(),
     h2("Citations"),
-    h4("Irineo Cabreros, Joshua Snoke, Osonde Osoba, Inez Khan, Marc Elliott. Advancing Equitable Decision-Making for the Department of Defense through Fairness in Machine Learning. 
-        Santa Monica, CA: RAND Corporation, 2022."),
-    h4("James E. Johndrow and Kristian Lum. An algorithm for removing sensitive information: application to race-independent recidivism prediction. 
-        Annals of Applied Statistics, Vol. 13, No. 1, March, 2019, pp. 189-220.")
+    h4("Irineo Cabreros, Joshua Snoke, Osonde A. Osoba, Inez Khan, and Marc N. Elliott, 
+       Advancing Equitable Decisionmaking for the Department of Defense Through Fairness in Machine Learning, 
+       RR-A1542-1, 2023. https://www.rand.org/pubs/research_reports/RRA1542-1.html"),
+    h4("James E. Johndrow and Kristian Lum. 
+       An algorithm for removing sensitive information: application to race-independent recidivism prediction, 
+       Annals of Applied Statistics, Vol. 13, No. 1, March, 2019, pp. 189-220.")
   )
 )
 
