@@ -4,7 +4,7 @@
 
 In recent years, there has been a growing awareness that Machine Learning (ML) algorithms can reinforce or exacerbate human biases. The RAND Algorithmic Equity Tool was developed to help identify and mitigate biases in algorithms that assist in decision-making processes. In particular, the tool helps users visualize tradeoffs, such as diminished predictive accuracy, that are inherent to enforcing equity. This tool was produced as part of a research effort for RAND, with the goal of assisting the Department of Defense (DoD) as they invest in the development of ML algorithms for a growing number applications. The companion report further discusses this tool and its creation:
 
-**[Advancing Equitable Decisionmaking for the Department of Defense Through Fairness in Machine Learning](https://www.rand.org/pubs/research_reports/RR2708.html)**
+**[Advancing Equitable Decisionmaking for the Department of Defense Through Fairness in Machine Learning](https://www.rand.org/pubs/research_reports/RRA1542-1.html)**
  
 While ML algorithms are deployed in a wide variety of applications, this tool is specifically designed for a algorithms that assist in decision-making processes. In particular, this tool is useful when algorithmic output is used to influence binary decisions about individuals. A hypothetical example within this framework is an algorithm that produces individual-level employee performance scores, which are subsequently considered in promotional decisions.
 
