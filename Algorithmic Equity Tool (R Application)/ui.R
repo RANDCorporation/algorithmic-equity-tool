@@ -1,56 +1,46 @@
 library(shiny)
 library(shinyWidgets)
 
-#note, dev branch has 3 cosmetic chaneges: overall color bar plot, threshold label, remove threshold legend
+#note, dev branch has 3 cosmetic changes: overall color bar plot, threshold label, remove threshold legend
 
 ui <- navbarPage(
   title = "RAND Algorithmic Equity Tool",
   theme = shinythemes::shinytheme("flatly"),
   # add this
-  tags$head(tags$style(HTML('.navbar-static-top {background-color: #1475AD;}',
-                            '.navbar-default .navbar-nav>.active>a {background-color: #1475AD;}'))),
+  tags$head(tags$style(HTML('.navbar-default {background-color: #2c3e50;}',
+  ))),
   #.navbar-default {
   #  background-color: #b1b1b3 !important;
   #}
-  position = c("fixed-top"),
   collapsible = TRUE,
   tabPanel(
     "About",
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
     h3("Introduction"),
-    h4("In recent years, there has been a growing awareness that Machine Learning (ML) algorithms can reinforce or exacerbate human biases. 
-       The RAND Algorithmic Equity Tool was developed to help identify and mitigate biases in algorithms that assist in decision-making processes. 
-       In particular, the tool helps users visualize tradeoffs, such as diminished predictive accuracy, that are inherent to enforcing equity. 
-       This tool was produced as part of a research effort for RAND, with the goal of assisting the Department of Defense (DoD) as they invest in the development of ML algorithms for a growing number applications. 
+    h4("In recent years, there has been a growing awareness that Machine Learning (ML) algorithms can reinforce or exacerbate human biases.
+       The RAND Algorithmic Equity Tool was developed to help identify and mitigate biases in algorithms that assist in decision-making processes.
+       In particular, the tool helps users visualize tradeoffs, such as diminished predictive accuracy, that are inherent to enforcing equity.
+       This tool was produced as part of a research effort for RAND, with the goal of assisting the Department of Defense (DoD) as they invest in the development of ML algorithms for a growing number applications.
        The companion report further discusses this tool and its creation"
        ),
-    h4("While ML algorithms are deployed in a wide variety of applications, this tool is specifically designed for a algorithms that assist in decision-making processes. 
-       In particular, this tool is useful when algorithmic output is used to influence binary decisions about individuals. 
+    h4("While ML algorithms are deployed in a wide variety of applications, this tool is specifically designed for a algorithms that assist in decision-making processes.
+       In particular, this tool is useful when algorithmic output is used to influence binary decisions about individuals.
        A hypothetical example within this framework is an algorithm that produces individual-level employee performance scores, which are subsequently considered in promotional decisions."
        ),
     tags$br(),
     h3("Related Links"),
-    tags$a(href = "https://www.rand.org/pubs/research_reports/RRA1542-1.html", 
+    tags$a(href = "https://www.rand.org/pubs/research_reports/RRA1542-1.html",
            "Accompanying research report"),
     tags$br(),
-    tags$a(href = "https://github.com/RANDCorporation/algorithmic-equity-tool", 
+    tags$a(href = "https://github.com/RANDCorporation/algorithmic-equity-tool",
            "GitHub repository with source code and tutorial"),
     tags$br(),
     h3('Contact'),
     h4('Please reach out for any questions or issues related to this tool:'),
-    tags$a(href = "https://www.rand.org/about/people/s/snoke_joshua.html", 
+    tags$a(href = "https://www.rand.org/about/people/s/snoke_joshua.html",
            "Joshua Snoke"),
   ),
   tabPanel(
     "Comparing Models",
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
     tags$head(
       tags$style(HTML("
       .shiny-output-error-validation {
@@ -61,7 +51,7 @@ ui <- navbarPage(
     "))
     ),
     sidebarLayout(
-      sidebarPanel(style = "position: fixed; width: 30%;",
+      sidebarPanel(style = "position: fixed; width: 30%; height: 70%",
                    tags$br(),
                    setBackgroundColor(
                      color = c( "#f2fafd")
@@ -70,7 +60,7 @@ ui <- navbarPage(
                     background-color:	#fcfcfc;
                     border-width: 1px;
                     border-color: #1475AD;
-                    height: 85vh; 
+                    # height: 85vh;
                     overflow-y: auto;
                     color: #000000;
                    }"),
@@ -95,27 +85,23 @@ ui <- navbarPage(
                                choices = c("Accuracy", "Statistical Parity", "False Positive Rate","False Negative Rate","Positive Predictive Value", "Negative Predictive Value")),
                    selectInput(inputId = "mdls_performance", label = "Overall Performance Metrics (y axis)",
                                choices = c("Overall Accuracy", "False Positive Rate", "False Negative Rate", "Positive Predictive Value", "Negative Predictive Value")),
-                   
+
       ),
-      
+
       mainPanel(
         tags$head(tags$style("#mdls_acc_per_plt{height:75vh !important;}")),
         shinycssloaders::withSpinner(plotOutput("mdls_acc_per_plt", width = "100%")),
         tags$br()
-        
+
       ),
-      
+
     )
   ),
-  
+
   tabPanel(
     "Comparing Post-Processing Methods",
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
     sidebarLayout(
-      sidebarPanel(style = "position: fixed; width: 30%;",
+      sidebarPanel(style = "position: fixed; width: 30%; height: 70%",
                    tags$br(),
                    setBackgroundColor(
                      color = c( "#f2fafd")
@@ -124,13 +110,13 @@ ui <- navbarPage(
                     background-color:	#fcfcfc;
                     border-width: 1px;
                     border-color: #1475AD;
-                    height: 85vh; 
+                    # height: 85vh;
                     overflow-y: auto;
                     color: #000000;
                    }"),
                    tags$b("Comparing Different Post-Processing Methods on a Specific Model"),
-                   tags$div("Upload a dataset to then compare different post-processing methods being applied to it. Toggle between any or all methods, and the chosen group-level and 
-                            overall statistics being applied to the post-processed data. For discussion of the methods please see the Definitions tab. To download the plots or post-processed data 
+                   tags$div("Upload a dataset to then compare different post-processing methods being applied to it. Toggle between any or all methods, and the chosen group-level and
+                            overall statistics being applied to the post-processed data. For discussion of the methods please see the Definitions tab. To download the plots or post-processed data
                             see the 'Download Outputs' tab."),
                    tags$br(),
                    tags$div("Additional Notes:"),
@@ -155,30 +141,26 @@ ui <- navbarPage(
                                choices = c("Accuracy", "Statistical Parity", "False Positive Rate","False Negative Rate", "Positive Predictive Value", "Negative Predictive Value")),
                    selectInput(inputId = "performance", label = "Overall Performance Metrics (y axis)",
                                choices = c("Overall Accuracy", "False Positive Rate", "False Negative Rate", "Positive Predictive Value", "Negative Predictive Value"))
-                   
+
       ),
-      
+
       mainPanel(
-        
+
         tags$head(tags$style("#threshold{height:30vh !important;}")),
         tags$head(tags$style("#acc_per_plt{height:55vh !important;}")),
-        shinycssloaders::withSpinner(plotOutput("threshold", height = "400px")), 
+        shinycssloaders::withSpinner(plotOutput("threshold", height = "400px")),
         tags$br(),
         shinycssloaders::withSpinner(plotOutput("acc_per_plt", height = "800px")),
         tags$br()
-        
+
       ),
-      
+
     )
   ),
   tabPanel(
     "Generate Pre-Processed Data",
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
     sidebarLayout(
-      sidebarPanel(style = "position: fixed; width: 30%;",
+      sidebarPanel(style = "position: fixed; width: 30%; height: 70%",
                    tags$br(),
                    setBackgroundColor(
                      color = c( "#f2fafd")
@@ -187,13 +169,13 @@ ui <- navbarPage(
                     background-color:	#fcfcfc;
                     border-width: 1px;
                     border-color: #1475AD;
-                    height: 85vh; 
+                    # height: 85vh;
                     overflow-y: auto;
                     color: #000000;
                    }"),
                    tags$b("Pre-Processing Data"),
                    tags$br(),
-                   tags$div("Use this tab to tranform the data before feeding it into a model. The dataset must include covariates and a variable named 'G'. 
+                   tags$div("Use this tab to tranform the data before feeding it into a model. The dataset must include covariates and a variable named 'G'.
        Pre-processing methods are named after the papers they were derived from, while further
        discussion of these methods are described in the Definitions tab."),
                    tags$br(),
@@ -218,7 +200,7 @@ ui <- navbarPage(
                    selectInput("preprocess", label = NULL, choices = c("Johndrow and Lum (2019)")),
                    tags$b("Compare Original/Pre-Processed Variables"),
                    uiOutput("var_stats")
-                   
+
       ),
       mainPanel(
         tags$head(tags$style("#var_plot{height:85vh !important;}")),
@@ -229,15 +211,11 @@ ui <- navbarPage(
   ),
   tabPanel(
     "Download Outputs",
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
     titlePanel("Downloading Post-Processed Data and Plots"),
     tags$br(),
-    h4("Use this tab to download data and plots from the first three tabs of this tool. The processed data you will receive will be based on the inputs selected from these tabs. 
+    h4("Use this tab to download data and plots from the first three tabs of this tool. The processed data you will receive will be based on the inputs selected from these tabs.
        You will get one file per tab, outputted as an .xlsx. Each tab will be data for each model or method applied, with the last tab containing information about thresholds applied
-       to each model/method in the tool. Below there is a summary of what models/methods from each tab that will downloaded. In regards to downloading plots, you will get what is currently 
+       to each model/method in the tool. Below there is a summary of what models/methods from each tab that will downloaded. In regards to downloading plots, you will get what is currently
        in the respective tabs condensed into a .png file. For pre-processed data, the output will
        be a .csv file. Download buttons will only appear once files have been uploaded to the appropriate tabs."
     ),
@@ -254,12 +232,12 @@ ui <- navbarPage(
              uiOutput("show_mdl_plt_btn")
       )
     ),
-    
+
     tags$br(),
     h3("Comparing Post-Processing Methods tab"),
     tags$br(),
     fluidRow(
-      column(4, 
+      column(4,
              tags$em(h4("Plots")),
              uiOutput("sub_metrics"),
              uiOutput("all_metrics"),
@@ -285,10 +263,6 @@ ui <- navbarPage(
   tabPanel(
     "Descriptions",
     withMathJax(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
     titlePanel("Definitions and descriptions"),
     tags$br(),
     h4("This tab contains definitions of terms referred to in the previous tabs.
@@ -301,52 +275,52 @@ ui <- navbarPage(
     uiOutput("acc_form"),
     h3("False Negative Rate"),
     h4("Among the population for whom \\(Y = 1\\), the proportion of incorrectly predicted negative outcomes. Equivalent to 1 minus the True Positive Rate."),
-    uiOutput("fn_rate"), 
+    uiOutput("fn_rate"),
     h3("False Positive Rate"),
     h4("Among the population for whom \\(Y = 0\\), the proportion of incorrectly predicted positive outcomes. Equivalent to 1 minus the True Negative Rate."),
-    uiOutput("fp_rate"), 
+    uiOutput("fp_rate"),
     h3("Positive Predicted Rate"),
     h4("The proportion of positive predicted outcomes."),
-    uiOutput("ppr_form"), 
+    uiOutput("ppr_form"),
     h3("Positive Predicted Value (PPV)"),
     h4("Among the population predicted to be positive, \\(\\hat{Y} = 1\\), the proportion that is truly positive."),
-    uiOutput("ppv_form"), 
+    uiOutput("ppv_form"),
     h3("Negative Predictive Value (NPV)"),
     h4("Among the population predicted to be negative, \\(\\hat{Y} = 0\\), the proportion that is truly negative."),
     uiOutput("npv_form"),
     h2("Post-Processing Methods"),
-    h4("The post processing methods find thresholds for positive prediction for each level of \\( G \\) that minimize differential performance while optimizing overall performance. 
+    h4("The post processing methods find thresholds for positive prediction for each level of \\( G \\) that minimize differential performance while optimizing overall performance.
         Further details of this optimization procedure are found in Cabreros, et al. (2023). Each of the post-processing options available are described below."),
     h3("Statistical Parity PP"),
     h4("This method finds optimal thresholds such that the Predicted Positive Rate is equal across each level of \\( G \\)."),
-    uiOutput("sp_form"), 
+    uiOutput("sp_form"),
     h3("Equalized Odds PP"),
     h4("This method finds optimal thresholds such that both the False Positive and False Negative Rates are balanced across
        all levels of \\( G \\)."),
     h4("False Positive Balance indicates:"),
     uiOutput("fp_bal_form"),
     h4("and False Negative Balance indicates:"),
-    uiOutput("fn_bal_form"), 
+    uiOutput("fn_bal_form"),
     h4("Equivalently, this method seeks to equalize True Negative and True Positive Rates across all levels of \\( G \\)"),
     h3("Equalized Opportunity PP"),
     h4("This method finds optimal thresholds such that the True Positive Rate is the same across all levels of \\( G \\)."),
     uiOutput("equal_opp_form"),
     h4("Equivalently, this method seeks to equalize False Negative Rates to be equal across all levels of \\( G \\)."),
     h3("Equalized Error Rate PP"),
-    h4("This method finds optimal thresholds such that the error rates are equal across all levels of \\( G \\). 
+    h4("This method finds optimal thresholds such that the error rates are equal across all levels of \\( G \\).
         Equalized error rates are achieved when each level of \\( G \\) have the same accuracy."),
-    uiOutput("err_form"), 
+    uiOutput("err_form"),
     h2("Pre-Processing Methods"),
-    h4("We have implemented a simple pre-processing approach adopted from Johndrow and Lum (2019) that ensures pairwise independence between 
-       each covariate and the sensitive attribute \\( G \\). We note that Johndrow and Lum (2019) also describe a method to enforce 
+    h4("We have implemented a simple pre-processing approach adopted from Johndrow and Lum (2019) that ensures pairwise independence between
+       each covariate and the sensitive attribute \\( G \\). We note that Johndrow and Lum (2019) also describe a method to enforce
        joint independence, which is not implemented as of the current version of the tool."),
     tags$br(),
     h2("Citations"),
-    h4("Irineo Cabreros, Joshua Snoke, Osonde A. Osoba, Inez Khan, and Marc N. Elliott, 
-       Advancing Equitable Decisionmaking for the Department of Defense Through Fairness in Machine Learning, 
+    h4("Irineo Cabreros, Joshua Snoke, Osonde A. Osoba, Inez Khan, and Marc N. Elliott,
+       Advancing Equitable Decisionmaking for the Department of Defense Through Fairness in Machine Learning,
        RR-A1542-1, 2023. https://www.rand.org/pubs/research_reports/RRA1542-1.html"),
-    h4("James E. Johndrow and Kristian Lum. 
-       An algorithm for removing sensitive information: application to race-independent recidivism prediction, 
+    h4("James E. Johndrow and Kristian Lum.
+       An algorithm for removing sensitive information: application to race-independent recidivism prediction,
        Annals of Applied Statistics, Vol. 13, No. 1, March, 2019, pp. 189-220.")
   )
 )
