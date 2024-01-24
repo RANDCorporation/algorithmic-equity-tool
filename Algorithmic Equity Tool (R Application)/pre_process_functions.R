@@ -56,7 +56,7 @@ atomic_u <- function(x, atoms, cdf){
 
 # Inverse cdf
 G_inverse <- function(U, cdf_target, atoms){
-  quantiles <- quantile(U, cdf_target)
+  quantiles <- quantile(U, cdf_target, na.rm = T)
   W1_1 <- cut(x = U, breaks = c(0, quantiles), labels = atoms, include.lowest = TRUE)
   return(W1_1)
 }
@@ -64,7 +64,7 @@ G_inverse <- function(U, cdf_target, atoms){
 dist_continuous <- function(x) {
   cdf.func <- ecdf(x)
   prob <- cdf.func(x)
-  quantiles <-  quantile(x, prob)
+  quantiles <-  quantile(x, prob, na.rm = T)
   W1_1 <- cut(x = x, breaks = c(0, quantiles), labels = x)
   return(W1_1)
 }
@@ -72,7 +72,7 @@ dist_continuous <- function(x) {
 get_sub_cont <- function(sub, X){
   rank_sub <- rank(sub)
   U_sub <- rank_sub/length(sub)
-  W_sub <- quantile(X, U_sub)
+  W_sub <- quantile(X, U_sub, na.rm = T)
   return(W_sub)
 }
 get_sub_dis <- function(sub, dist_X, atoms){
