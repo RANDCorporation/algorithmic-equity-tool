@@ -41,14 +41,18 @@ ui <- navbarPage(
     tags$br(),
     h3("Introduction"),
     h4("In recent years, there has been a growing awareness that Machine Learning (ML) algorithms can reinforce or exacerbate human biases. 
-       The RAND Algorithmic Equity Tool was developed to help identify and mitigate biases in algorithms that assist in decision-making processes. 
-       In particular, the tool helps users visualize tradeoffs, such as diminished overall accuracy, that may be side effects of enforcing equity. 
-       This tool was produced as part of a research effort for RAND, with the goal of assisting the Department of Defense (DoD) as they invest in the development of ML algorithms for a growing number of applications. 
-       The companion report further discusses this tool and its creation."
+       The RAND Algorithmic Equity Tool was developed to help assess and correct biases in algorithms that assist in decision-making processes. 
+       In particular, the tool helps users visualize tradeoffs between different types of fairness and overall model performance. It also provides tools to 
+       mitigate bias through post-processing or pre-processing."
+    ), 
+    h4("This tool was originally produced as part of a research effort for RAND, with the goal of assisting the Department of Defense (DoD) as they invest in the development of ML algorithms for a growing number of applications. 
+       The tool has been extended to address the issue of using proxy measures for group labels, which is common in healthcare settings where information on race and ethnicity is often missing or imputed. 
+       The two companion reports further discusses this tool, its creation, and its development."
     ),
     h4("While ML algorithms are deployed in a wide variety of applications, this tool is specifically designed for algorithms that assist in decision-making processes. 
        In particular, this tool is useful when algorithmic output is used to influence binary decisions about individuals. 
-       A hypothetical example within this framework is an algorithm that produces individual-level employee performance scores which are subsequently considered in promotional decisions."
+       Hypothetical examples within this framework are (1) an algorithm that produces individual-level employee performance scores which are subsequently considered in promotional decisions or
+       (2) an algorithm that produces recommendations for follow-up treatment from medical diagnostic testing."
     ),
     tags$br(),
     h3("Related Links"),
@@ -258,7 +262,7 @@ ui <- navbarPage(
                    tags$p("Use this tab to tranform data before feeding it into a model. The dataset must include covariates and a variable named 'G'."),
                    tags$p("Upload a dataset and select a method using the dropdown. Pre-processing will be done on all of the data with original row positions preserved.
                           This tab will display a comparison between the original and preprocessed data for each input variable.
-                          The goal of pre-processing is the equalize each variable's distribution across groups (G)."),
+                          The goal of pre-processing is to equalize each variable's distribution across groups (G)."),
                    tags$p("For descriptions of pre-processing methods, see the Descriptions tab. Hover over plots for more information."),
                    tags$br(),
                    tags$b("Before Uploading Data"),
