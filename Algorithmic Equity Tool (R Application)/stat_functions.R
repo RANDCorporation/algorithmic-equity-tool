@@ -3,7 +3,7 @@ library(ggplot2)
 library(grid)
 library(gridExtra)
 
-
+# REMOVE ALL? (use prob versions instead)
 #################################### performance metrics
 fpr <- function(Y, Yhat){
   return(sum((Yhat == 1) * (Y == 0)) / sum((Y == 0)))
@@ -36,8 +36,9 @@ ppv <- function(Y, Yhat){
 npv <- function(Y, Yhat){
   return(sum((Yhat == 0) * (Y == 0))/sum(Yhat == 0))
 }
-########################################post processing methods
 
+########################################post processing methods
+# REMOVE? No mentions in server.R (we are using prob version instead)
 #equalized opportunity and equalized error
 apply_equal_stats <- function(data, FUN, base_thresh){
   
@@ -63,7 +64,7 @@ apply_equal_stats <- function(data, FUN, base_thresh){
     # compute max of pairwise equity errors
     equity.dist <- max(dist(equity.df))
     
-    # add total error to oequity metric
+    # add total error to equity metric
     total.dist <- equity.dist + sum(errors.df)
 
     return(total.dist)
@@ -80,7 +81,7 @@ apply_equal_stats <- function(data, FUN, base_thresh){
   return(list(data = data, thresh = thresh.row, message = message))
 }
 
-
+# REMOVE? (use prob version instead)
 #####################other utility functions
 get_metrics_by_race <- function(method, data, FUN = sp){
   df <- data.frame(
@@ -94,6 +95,7 @@ get_metrics_by_race <- function(method, data, FUN = sp){
 }
 
 
+# REMOVE? (use prob version instead)
 #as per Hardt et al (2016)
 # this function determines an optimal equalized (or as close to equalized) 
 # odds threshold classifier via grid search
@@ -137,92 +139,47 @@ apply_equalized_odds <- function(data, base_thresh){
   return(list(data = data, thresh = thresh.row))
 }
 
-######################geting statistics
-get_equity_performance <- function(dfs, pro.methods, thresh = NULL, eq, per){
-  #################################threshold plot
-  if(is.null(thresh)){
-    thresh.df <- "nothing"
+# REMOVE: used only in bootstrap_metrics (moved from bootstrapping_stat_functions)
+get_metrics_by_race_prob = function(method, data, FUN = sp_prob){
+  g_names = grep('^G', colnames(data), value = TRUE)
+  df = tibble(
+    Method = rep(method, length(g_names) + 1),
+    G = c('Combined', 
+          g_names),
+    Value = c(FUN(g_prob = NULL, 
+                  Y = data$Y, 
+                  Yhat = data$Yhat),
+              sapply(data[, grep('G', colnames(data))], 
+                     FUN, 
+                     data$Y, 
+                     data$Yhat))
+  )
+  return(df)
+}
+
+# REMOVE: covered by bootstrap_sample() with impute_only() (moved from bootstrapping_stat_functions)
+## get uncertainty around metrics for each group
+bootstrap_metrics = function(method, data, n_boot = 100, FUN = sp, lower_ci = 0.025, upper_ci = 0.975){
+  boot_out = vector('list', n_boot)
+  group_col = grep('G', colnames(data), value = TRUE)
+  ## bootstrap the group values
+  boot_groups = Hmisc::rMultinom(data[, group_col], n_boot)
+  ## this part is niave and could probably be sped up
+  for(temp_boot in 1:n_boot){
+    boot_data = data
+    for(temp_g in group_col){
+      boot_data[, temp_g] = 0
+      boot_data[boot_groups[, temp_boot] == temp_g, temp_g] = 1
+    }
+    ## get metrics for each bootstrap replicate
+    boot_out[[temp_boot]] = get_metrics_by_race_prob(method, boot_data, FUN = FUN)
   }
-  else{
-    thresh.df <- data.frame(Method = rep(pro.methods, each =length(unique(dfs[[1]]$G))),
-                            G = rep(unique(dfs[[1]]$G), times = length(pro.methods)), 
-                            Threshold = thresh)
-  }
-  ######################equity metrics code - by race
-  if(eq == "Statistical Parity"){
-    equity <- do.call(rbind, lapply(1:length(pro.methods), function(ind){
-      return(get_metrics_by_race(method = pro.methods[ind], data = dfs[[ind]], FUN = sp))
-    }))
-    ylab.equity <- "Proportion of Predicted Positives"
-  }
-  else if(eq == "False Positive Rate"){
-    equity <- do.call(rbind, lapply(1:length(pro.methods), function(ind){
-      return(get_metrics_by_race(method = pro.methods[ind], data = dfs[[ind]], FUN = fpr))
-    }))
-    ylab.equity <- "Proportion of False Positives"
-  }
-  else if(eq == "False Negative Rate"){
-    equity <- do.call(rbind, lapply(1:length(pro.methods), function(ind){
-      return(get_metrics_by_race(method = pro.methods[ind], data = dfs[[ind]], FUN= fnr))
-    }))
-    ylab.equity <- "Proportion of False Negatives"
-  }
-  else if(eq == "Accuracy"){
-    equity <- do.call(rbind, lapply(1:length(pro.methods), function(ind){
-      return(get_metrics_by_race(method = pro.methods[ind], data = dfs[[ind]], FUN= accuracy))
-    }))
-    ylab.equity <- "Proportion of Correct Responses"
-  }
-  else if(eq == "Positive Predictive Value"){
-    equity <- do.call(rbind, lapply(1:length(pro.methods), function(ind){
-      return(get_metrics_by_race(method = pro.methods[ind], data = dfs[[ind]], FUN= ppv))
-    }))
-    ylab.equity <- "Proportion of True Positives"
-  }
-  else if (eq == "Negative Predictive Value"){
-    equity <- do.call(rbind, lapply(1:length(pro.methods), function(ind){
-      return(get_metrics_by_race(method = pro.methods[ind], data = dfs[[ind]], FUN= npv))
-    }))
-    ylab.equity <- "Proportion of True Negatives"
-  }
-  #############################performance metrics code
-  if(per == "Overall Accuracy"){
-    performance <- data.frame(Method = pro.methods,
-                              Value = do.call(rbind, lapply(dfs, function(df){
-                                return(mean(df$Y == df$Yhat))}))
-    )
-    ylab.perform <- "Proportion of Correct Responses"
-  }
-  else if(per == "False Positive Rate"){
-    performance <- data.frame(Method = pro.methods,
-                              Value = do.call(rbind, lapply(dfs, function(df){
-                                return(nrow(filter(df, Yhat == 1, Y == 0))/ nrow(filter(df, Y == 0)))
-                              })))
-    ylab.perform <- "Proportion of False Positives"
-  }
-  else if(per == "False Negative Rate"){
-    performance <- data.frame(Method = pro.methods,
-                              Value = do.call(rbind, lapply(dfs, function(df){
-                                return(nrow(filter(df, Yhat == 0, Y == 1)) / nrow(filter(df, Y == 1)))
-                              })))
-    ylab.perform <- "Proportion of False Negatives"
-  }
-  else if(per == "Positive Predictive Value"){
-    performance <- data.frame(Method = pro.methods,
-                              Value = do.call(rbind, lapply(dfs, function(df){
-                                return(ppv(df$Y, df$Yhat))
-                              })))
-    ylab.perform <- "Proportion of True Positives"
-  }
-  else if (per == "Negative Predictive Value"){
-    performance <- data.frame(Method = pro.methods,
-                              Value = do.call(rbind, lapply(dfs, function(df){
-                                return(npv(df$Y, df$Yhat))
-                              })))
-    ylab.perform <- "Proportion of True Negatives"
-  }
-  
-  return(list(equity = equity, performance = performance, eq.lab = ylab.equity, per.lab = ylab.perform,
-              thresh.df = thresh.df))
+  boot_output = bind_rows(boot_out) %>%
+    group_by(G) %>%
+    reframe(Method = first(Method),
+            lower_ci = quantile(Value, lower_ci),
+            mean_est = mean(Value),
+            upper_ci = quantile(Value, upper_ci))
+  return(boot_output)
 }
 
