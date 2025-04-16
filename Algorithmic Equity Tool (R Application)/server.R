@@ -634,6 +634,7 @@ server <- function(input, output, session) {
   # Create datatable and fill with default param_3 values
   mdl_param3_data <- reactiveValues(
     data = data.frame(),
+    prior_data = data.frame(),
     updated = F)
   mdl_param3_table <- reactive({
     mdls_list <- req(mdl_objs())
@@ -688,6 +689,7 @@ server <- function(input, output, session) {
   # Capture edits to param_3 table
   observeEvent(input$mdls_t_param3_cell_edit, {
     eq_metric <- input$mdlsgps_equity
+    mdl_param3_data$prior_data = mdl_param3_data$data
     ## Get values
     info = input$mdls_t_param3_cell_edit
     ## note the swapped rows and columns because we transpose for viewing
@@ -716,6 +718,7 @@ server <- function(input, output, session) {
     param3_default <- req(mdl_param3())
     ## user input values
     dat <- isolate(mdl_param3_data$data)
+    prior_data = isolate(mdl_param3_data$prior_data)
     # Normalize values by row
     #dat <- round(dat / rowSums(dat), 2)
     #mdl_param3_data$data <- dat
@@ -733,7 +736,7 @@ server <- function(input, output, session) {
       i = 5
     }
     ## capture changes
-    values_unchanged = which(dat[i, , drop = FALSE] == as.data.frame(param3_default[[1]])[i, , drop = FALSE])
+    values_unchanged = which(dat[i, , drop = FALSE] == prior_data[i, , drop = FALSE])
     # calculate total change
     difference <- 1 - sum(dat[i, , drop = FALSE])
     # Normalize unchanged values (relative to prior value)
