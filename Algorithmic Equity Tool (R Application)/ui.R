@@ -106,7 +106,7 @@ ui <- navbarPage(
                      tags$li("Yhat: Predicted outcome (binary, 0/1)"),
                    ),
                    radioButtons("mdls_num", "How many models will you compare?",
-                                choices = list(2,3,4,5),selected = 2, inline = TRUE),
+                                choices = list(1,2,3,4,5), selected = 2, inline = TRUE),
                    uiOutput("mdls_fileInputs"),
                    textOutput("mdls_warn_Gprob"),
                    selectInput(inputId = "mdlsgps_equity", label = "Subgroup Performance Metrics",

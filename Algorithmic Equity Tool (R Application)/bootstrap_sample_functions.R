@@ -36,8 +36,8 @@ bootstrap_only <- function(data, bs_ind, group_cols, metrics) {
 ### matrix of CI and SE values. Rows: combined data, then groups in factor level order.
 ######################################################################################################
 bootstrap_sample <- function(data, B, alpha=0.05, 
-                             ci_types = c("norm","basic","perc","bca","all"),
-                             metrics = c("accuracy","selrate","tnr", "tpr", "fpr","fnr","ppv","npv"),
+                             ci_types = c("norm", "basic", "perc", "bca", "all"),
+                             metrics = c("accuracy", "selrate", "tnr", "tpr", "fpr", "fnr", "ppv", "npv"),
                              parallel_opt = "no") {
   # Check inputs
   ci_types <- match.arg(ci_types, several.ok = T)

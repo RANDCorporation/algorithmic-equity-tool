@@ -94,10 +94,10 @@ trunc_01 <- function(v) {
 ## Outputs: vector of param_3 values (corresponding to the following h_1 functions, in order: Y=1,Y=0,Yhat=1,Yhat=0,1)
 #######################################################################################################################
 get_param3 <- function(G_prob, Y, Yhat) {
-  sens_param_3_Y1 <- mean(G_prob*Y)/mean(Y)
-  sens_param_3_Yhat1 <- mean(G_prob*Yhat)/mean(Yhat)
-  sens_param_3_Y0 <- mean(G_prob*(1-Y))/mean(1-Y)
-  sens_param_3_Yhat0 <- mean(G_prob*(1-Yhat))/mean(1-Yhat)
+  sens_param_3_Y1 <- mean(G_prob * Y) / mean(Y)
+  sens_param_3_Yhat1 <- mean(G_prob * Yhat) / mean(Yhat)
+  sens_param_3_Y0 <- mean(G_prob * (1 - Y)) / mean(1 - Y)
+  sens_param_3_Yhat0 <- mean(G_prob * (1 - Yhat)) / mean(1 - Yhat)
   sens_param_3_all <- mean(G_prob)
   
   return(c(sens_param_3_Y1, sens_param_3_Y0, sens_param_3_Yhat1, sens_param_3_Yhat0, sens_param_3_all))
@@ -114,16 +114,22 @@ get_param3 <- function(G_prob, Y, Yhat) {
 #######################################################################################################################
 get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime) {
   # Calculate constraints to remove impossible combinations of epsilon, epsilon'
-  expec_Y1Yhat1 <- mean(data_gp$G_prob*data_gp$Y*data_gp$Yhat)/mean(data_gp$Y*data_gp$Yhat)
-  expec_Y1Yhat0 <- mean(data_gp$G_prob*data_gp$Y*(1-data_gp$Yhat))/mean(data_gp$Y*(1-data_gp$Yhat))
-  expec_Y0Yhat1 <- mean(data_gp$G_prob*(1-data_gp$Y)*data_gp$Yhat)/mean((1-data_gp$Y)*data_gp$Yhat)
-  expec_Y0Yhat0 <- mean(data_gp$G_prob*(1-data_gp$Y)*(1-data_gp$Yhat))/mean((1-data_gp$Y)*(1-data_gp$Yhat))
-  expec_YeqYhat <- mean(data_gp$G_prob*as.numeric(data_gp$Y==data_gp$Yhat))/mean(as.numeric(data_gp$Y==data_gp$Yhat))
-  expec_YneqYhat <- mean(data_gp$G_prob*as.numeric(data_gp$Y!=data_gp$Yhat))/mean(as.numeric(data_gp$Y!=data_gp$Yhat))
-  expec_Yhat1 <- mean(data_gp$G_prob*data_gp$Yhat)/mean(data_gp$Yhat)
-  expec_Yhat0 <- mean(data_gp$G_prob*(1-data_gp$Yhat))/mean(1-data_gp$Yhat)
-  expec_vec_names <- c("expec_Y1Yhat1", "expec_Y1Yhat0", "expec_Y0Yhat1", "expec_Y0Yhat0", 
-                 "expec_YeqYhat", "expec_YneqYhat", "expec_Yhat1", "expec_Yhat0")
+  expec_Y1Yhat1 <- mean(data_gp$G_prob * data_gp$Y * data_gp$Yhat) / mean(data_gp$Y * data_gp$Yhat)
+  expec_Y1Yhat0 <- mean(data_gp$G_prob * data_gp$Y * (1 - data_gp$Yhat)) / mean(data_gp$Y * (1 - data_gp$Yhat))
+  expec_Y0Yhat1 <- mean(data_gp$G_prob * (1 - data_gp$Y) * data_gp$Yhat) / mean((1 - data_gp$Y) * data_gp$Yhat)
+  expec_Y0Yhat0 <- mean(data_gp$G_prob * (1 - data_gp$Y) * (1 - data_gp$Yhat)) / mean((1 - data_gp$Y) * (1 - data_gp$Yhat))
+  expec_YeqYhat <- mean(data_gp$G_prob * as.numeric(data_gp$Y==data_gp$Yhat))/mean(as.numeric(data_gp$Y == data_gp$Yhat))
+  expec_YneqYhat <- mean(data_gp$G_prob * as.numeric(data_gp$Y != data_gp$Yhat)) / mean(as.numeric(data_gp$Y != data_gp$Yhat))
+  expec_Yhat1 <- mean(data_gp$G_prob * data_gp$Yhat) / mean(data_gp$Yhat)
+  expec_Yhat0 <- mean(data_gp$G_prob * (1 - data_gp$Yhat)) / mean(1 - data_gp$Yhat)
+  expec_vec_names <- c("expec_Y1Yhat1", 
+                       "expec_Y1Yhat0", 
+                       "expec_Y0Yhat1", 
+                       "expec_Y0Yhat0", 
+                       "expec_YeqYhat", 
+                       "expec_YneqYhat", 
+                       "expec_Yhat1", 
+                       "expec_Yhat0")
   expec_vec <- sapply(expec_vec_names, function(x) { get(x) }, USE.NAMES = T)
   ## Set any NaN expectations to 0
   expec_vec <- sapply(expec_vec, function(val) {
@@ -191,31 +197,39 @@ get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime) {
 get_epsilon_bc <- function(data_gp, metric_marg, metric_vals, epsilon, epsilon_prime, param_3) {
   
   # Verify all metrics are included in all inputs
-  metric_names <- c("tpr","tnr","ppv","npv","accuracy","selrate")
+  metric_names <- c("tpr", "tnr", "ppv", "npv", "accuracy", "selrate")
   if(!(all(metric_names %in% names(metric_marg)) & all(metric_names %in% names(metric_vals)) 
-       & all(metric_names %in% names(epsilon)) & all(metric_names %in% names(epsilon_prime)))) stop("All metrics must have corresponding elements in 'metric_marg', 'metric_vals', 'epsilon', and 'epsilon_prime'.")
+       & all(metric_names %in% names(epsilon)) & all(metric_names %in% names(epsilon_prime)))){
+    stop("All metrics must have corresponding elements in 'metric_marg', 'metric_vals', 'epsilon', and 'epsilon_prime'.")
+  }
   
   # Calculate bias corrections and bias-corrected metrics
   return_vec <- vector(length = length(metric_vals))
   names(return_vec) <- names(metric_vals)
   ## TPR
-  bias_epsilon_tpr <- ((1-metric_vals['tpr'])*metric_marg['tpr']*epsilon['tpr'] - metric_vals['tpr']*(1-metric_marg['tpr'])*epsilon_prime['tpr'])/param_3[1]
-  return_vec['tpr'] <- metric_vals['tpr']+bias_epsilon_tpr
+  bias_epsilon_tpr <- ((1 - metric_vals['tpr']) * metric_marg['tpr'] * epsilon['tpr'] - 
+                         metric_vals['tpr'] * (1 - metric_marg['tpr']) * epsilon_prime['tpr']) / param_3[1]
+  return_vec['tpr'] <- metric_vals['tpr'] + bias_epsilon_tpr
   ## TNR
-  bias_epsilon_tnr <- ((1-metric_vals['tnr'])*metric_marg['tnr']*epsilon['tnr'] - metric_vals['tnr']*(1-metric_marg['tnr'])*epsilon_prime['tnr'])/param_3[2]
-  return_vec['tnr'] <- metric_vals['tnr']+bias_epsilon_tnr
+  bias_epsilon_tnr <- ((1 - metric_vals['tnr']) * metric_marg['tnr'] * epsilon['tnr'] - 
+                         metric_vals['tnr'] * (1 - metric_marg['tnr']) * epsilon_prime['tnr']) / param_3[2]
+  return_vec['tnr'] <- metric_vals['tnr'] + bias_epsilon_tnr
   ## PPV
-  bias_epsilon_ppv <- ((1-metric_vals['ppv'])*metric_marg['ppv']*epsilon['ppv'] - metric_vals['ppv']*(1-metric_marg['ppv'])*epsilon_prime['ppv'])/param_3[3]
-  return_vec['ppv'] <- metric_vals['ppv']+bias_epsilon_ppv
+  bias_epsilon_ppv <- ((1 - metric_vals['ppv']) * metric_marg['ppv'] * epsilon['ppv'] - 
+                         metric_vals['ppv'] * (1 - metric_marg['ppv']) * epsilon_prime['ppv']) / param_3[3]
+  return_vec['ppv'] <- metric_vals['ppv'] + bias_epsilon_ppv
   ## NPV
-  bias_epsilon_npv <- ((1-metric_vals['npv'])*metric_marg['npv']*epsilon['npv'] - metric_vals['npv']*(1-metric_marg['npv'])*epsilon_prime['npv'])/param_3[4]
-  return_vec['npv'] <- metric_vals['npv']+bias_epsilon_npv
+  bias_epsilon_npv <- ((1 - metric_vals['npv']) * metric_marg['npv'] * epsilon['npv'] - 
+                         metric_vals['npv'] * (1 - metric_marg['npv']) * epsilon_prime['npv']) / param_3[4]
+  return_vec['npv'] <- metric_vals['npv'] + bias_epsilon_npv
   ## Accuracy
-  bias_epsilon_acc <- ((1-metric_vals['accuracy'])*metric_marg['accuracy']*epsilon['accuracy'] - metric_vals['accuracy']*(1-metric_marg['accuracy'])*epsilon_prime['accuracy'])/param_3[5]
-  return_vec['accuracy'] <- metric_vals['accuracy']+bias_epsilon_acc
+  bias_epsilon_acc <- ((1 - metric_vals['accuracy']) * metric_marg['accuracy'] * epsilon['accuracy'] - 
+                         metric_vals['accuracy'] * (1 - metric_marg['accuracy']) * epsilon_prime['accuracy']) / param_3[5]
+  return_vec['accuracy'] <- metric_vals['accuracy'] + bias_epsilon_acc
   ## Selection rate
-  bias_epsilon_selrate <- ((1-metric_vals['selrate'])*metric_marg['selrate']*epsilon['selrate'] - metric_vals['selrate']*(1-metric_marg['selrate'])*epsilon_prime['selrate'])/param_3[5]
-  return_vec['selrate'] <- metric_vals['selrate']+bias_epsilon_selrate
+  bias_epsilon_selrate <- ((1 - metric_vals['selrate']) * metric_marg['selrate'] * epsilon['selrate'] - 
+                             metric_vals['selrate'] * (1 - metric_marg['selrate']) * epsilon_prime['selrate']) / param_3[5]
+  return_vec['selrate'] <- metric_vals['selrate'] + bias_epsilon_selrate
   
   return(return_vec)
 }
@@ -291,7 +305,9 @@ get_eq_per_uncertainty <- function(dfs, pro.methods) {
                      parallel_opt = parallel_opt_set)
   })
   ## Bind bootstrap results from all dfs together
-  return_metrics <- metrics_bs %>% bind_rows(.id = "Method") %>% select(Method, metric, G, mean_est, ci_low, ci_high)
+  return_metrics <- metrics_bs %>% 
+    bind_rows(.id = "Method") %>% 
+    select(Method, metric, G, mean_est, ci_low, ci_high)
   return(return_metrics)
 }
 
