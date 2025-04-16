@@ -3,6 +3,8 @@
 # lapply(list_of_packages,
 #        function(x) if(!require(x,character.only = TRUE)) install.packages(x))
 
+options(shiny.maxRequestSize = 10 * 1024 ^ 2)
+
 library(shinyWidgets)
 library(shinyBS)
 library(dplyr)
@@ -196,7 +198,10 @@ server <- function(input, output, session) {
   # Upload files, validate, and store as list of dataframes
   mdl_objs <- reactive({
     # Upload files
-    all.upload <- c(is.null(input$mdls_file1), is.null(input$mdls_file2))
+    all.upload <- c(is.null(input$mdls_file1))
+    if(input$mdls_num >= 2){
+      all.upload <- c(all.upload, is.null(input$mdls_file2))
+    }
     if(input$mdls_num >= 3){
       all.upload <- c(all.upload, is.null(input$mdls_file3))
     }
@@ -317,15 +322,15 @@ server <- function(input, output, session) {
         ## Get data for each model
         dfs <- lapply(mdls_list$mdls, "[[", "data")
         ## Calculate bias corrections for each model
-        equity_metrics <- filter(mdls_bs$metrics, G!="Overall")
-        overall_metrics <- filter(mdls_bs$metrics, G=="Overall")
+        equity_metrics <- filter(mdls_bs$metrics, G != "Overall")
+        overall_metrics <- filter(mdls_bs$metrics, G == "Overall")
         
         mdls_bc <- lapply(seq_along(mdls_bs$methods), function(i) {
           dat_test <- dfs[[i]]
-          dat_marg <- filter(overall_metrics, Method==mdls_bs$methods[i])
+          dat_marg <- filter(overall_metrics, Method == mdls_bs$methods[i])
           ### Loop over groups
           gp_res <- lapply(unique(equity_metrics$G), function(g) {
-            dat_bs <- filter(equity_metrics, Method==mdls_bs$methods[i], G==g)
+            dat_bs <- filter(equity_metrics, Method == mdls_bs$methods[i], G == g)
             metrics_cilow <- unlist(as.vector(select(dat_bs, ci_low)))
             metrics_cihigh <- unlist(as.vector(select(dat_bs, ci_high)))
             metrics_mean <- unlist(as.vector(select(dat_bs, mean_est)))
@@ -340,20 +345,38 @@ server <- function(input, output, session) {
               mutate(G_prob = !!sym(g)) %>% select(-!!sym(g))
             
             #### Get min/max valid epsilon, epsilon' combinations for each metric
-            epsilon_minmax <- get_minmax_epsilon(data_gp=dat_gp, epsilon = seq(min(epsilon), max(epsilon), 0.01), epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01))
+            epsilon_minmax <- get_minmax_epsilon(data_gp = dat_gp, 
+                                                 epsilon = seq(min(epsilon), max(epsilon), 0.01), 
+                                                 epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01))
             
             #### Mean bias corrections
-            mean_bclow <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_mean, metric_vals = metrics_mean,
-                                         epsilon = epsilon_minmax$epsilon$min_vals, epsilon_prime=epsilon_minmax$epsilon_prime$max_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
-            mean_bchigh <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_mean, metric_vals = metrics_mean,
-                                          epsilon = epsilon_minmax$epsilon$max_vals, epsilon_prime=epsilon_minmax$epsilon_prime$min_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            mean_bclow <- get_epsilon_bc(data_gp = dat_gp, 
+                                         metric_marg = marg_mean, 
+                                         metric_vals = metrics_mean,
+                                         epsilon = epsilon_minmax$epsilon$min_vals, 
+                                         epsilon_prime = epsilon_minmax$epsilon_prime$max_vals, 
+                                         param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            mean_bchigh <- get_epsilon_bc(data_gp = dat_gp, 
+                                          metric_marg = marg_mean, 
+                                          metric_vals = metrics_mean,
+                                          epsilon = epsilon_minmax$epsilon$max_vals, 
+                                          epsilon_prime = epsilon_minmax$epsilon_prime$min_vals, 
+                                          param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             
             #### Low CI endpoint bias correction
-            cilow_bc <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_cilow, metric_vals = metrics_cilow,
-                                       epsilon = epsilon_minmax$epsilon$min_vals, epsilon_prime=epsilon_minmax$epsilon_prime$max_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            cilow_bc <- get_epsilon_bc(data_gp = dat_gp, 
+                                       metric_marg = marg_cilow, 
+                                       metric_vals = metrics_cilow,
+                                       epsilon = epsilon_minmax$epsilon$min_vals, 
+                                       epsilon_prime = epsilon_minmax$epsilon_prime$max_vals, 
+                                       param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             #### High CI endpoint bias correction
-            cihigh_bc <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_cihigh, metric_vals = metrics_cihigh,
-                                        epsilon=epsilon_minmax$epsilon$max_vals, epsilon_prime=epsilon_minmax$epsilon_prime$min_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            cihigh_bc <- get_epsilon_bc(data_gp = dat_gp, 
+                                        metric_marg = marg_cihigh, 
+                                        metric_vals = metrics_cihigh,
+                                        epsilon=epsilon_minmax$epsilon$max_vals, 
+                                        epsilon_prime = epsilon_minmax$epsilon_prime$min_vals, 
+                                        param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             #### Combine results in dataframe
             gp_df <- data.frame(
               metric = dat_bs$metric,
@@ -371,9 +394,9 @@ server <- function(input, output, session) {
           gp_res %>% bind_rows(.id = "G")
         })
         names(mdls_bc) <- mdls_bs$methods
-        full_bc <- mdls_bc %>% bind_rows(.id = "Method") %>% bind_rows(
-          mutate(overall_metrics, bc_low = NA_real_, bc_high = NA_real_)
-        )
+        full_bc <- mdls_bc %>% 
+          bind_rows(.id = "Method") %>% 
+          bind_rows(mutate(overall_metrics, bc_low = NA_real_, bc_high = NA_real_))
         
         return(list(tables = full_bc, is_probs = T))
       } else { return(list(tables = NULL, is_probs = T)) }
@@ -615,35 +638,120 @@ server <- function(input, output, session) {
   mdl_param3_table <- reactive({
     mdls_list <- req(mdl_objs())
     param3_default <- req(mdl_param3())
+    eq_metric <- input$mdlsgps_equity
     if(mdls_list$is_probs & !is.null(param3_default)) {
       mdl_param3_data$data <- as.data.frame(param3_default[[1]])
     }
   })
   # Output: param_3 editable datatable
   output$mdls_t_param3 <- DT::renderDT({
-    dat <- round(mdl_param3_data$data,2)
-    DT::datatable(dat, editable = TRUE, options = list(dom = 't'),
-                  rownames = c("Y=1","Y=0","Y&#770=1","Y&#770=0", "All"), escape = F)
+    eq_metric <- input$mdlsgps_equity
+    dat <- round(mdl_param3_data$data, 2)
+    if(eq_metric == 'True Positive Rate'){
+      DT::datatable(t(dat)[, 1, drop = FALSE], 
+                    editable = TRUE, 
+                    options = list(dom = 't', ordering = F),
+                    colnames = c("Y=1"), 
+                    escape = F)
+    } else if(eq_metric == 'True Negative Rate'){
+      DT::datatable(t(dat)[, 2, drop = FALSE], 
+                    editable = TRUE, 
+                    options = list(dom = 't', ordering = F),
+                    colnames = c("Y=0"), 
+                    escape = F)
+    } else if(eq_metric == 'Positive Predictive Value'){
+      DT::datatable(t(dat)[, 3, drop = FALSE], 
+                    editable = TRUE, 
+                    options = list(dom = 't', ordering = F),
+                    colnames = c("Y&#770=1"), 
+                    escape = F)
+    } else if(eq_metric == 'Negative Predictive Value'){
+      DT::datatable(t(dat)[, 4, drop = FALSE], 
+                    editable = TRUE, 
+                    options = list(dom = 't', ordering = F),
+                    colnames = c("Y&#770=0"), 
+                    escape = F)
+    } else if(eq_metric == 'Accuracy'){
+      DT::datatable(t(dat)[, 5, drop = FALSE], 
+                    editable = TRUE, 
+                    options = list(dom = 't', ordering = F),
+                    colnames = c("All"), 
+                    escape = F)
+    } else if(eq_metric == 'Selection Rate'){
+      DT::datatable(t(dat)[, 5, drop = FALSE], 
+                    editable = TRUE, 
+                    options = list(dom = 't', ordering = F),
+                    colnames = c("All"), 
+                    escape = F)
+    }
   })
   # Capture edits to param_3 table
   observeEvent(input$mdls_t_param3_cell_edit, {
+    eq_metric <- input$mdlsgps_equity
     ## Get values
     info = input$mdls_t_param3_cell_edit
-    i = as.numeric(info$row)
-    j = as.numeric(info$col)
+    ## note the swapped rows and columns because we transpose for viewing
+    j = as.numeric(info$row)
+    if(eq_metric == 'True Positive Rate'){
+      i = 1
+    } else if(eq_metric == 'True Negative Rate'){
+      i = 2
+    } else if(eq_metric == 'Positive Predictive Value'){
+      i = 3
+    } else if(eq_metric == 'Negative Predictive Value'){
+      i = 4
+    } else if(eq_metric == 'Accuracy'){
+      i = 5
+    } else if(eq_metric == 'Selection Rate'){
+      i = 5
+    }
     k = as.numeric(info$value)
     ## Write values to reactive
-    mdl_param3_data$data[i,j] <- k
+    mdl_param3_data$data[i, j] <- k
   })
   # Validate param_3 table inputs and trigger new bias correction calculation when "Recalculate" button is clicked
   observeEvent(input$mdls_calc_param3, {
+    eq_metric <- input$mdlsgps_equity
+    ## default values
+    param3_default <- req(mdl_param3())
+    ## user input values
     dat <- isolate(mdl_param3_data$data)
     # Normalize values by row
-    dat <- round(dat/rowSums(dat), 2)
-    mdl_param3_data$data <- dat
+    #dat <- round(dat / rowSums(dat), 2)
+    #mdl_param3_data$data <- dat
+    if(eq_metric == 'True Positive Rate'){
+      i = 1
+    } else if(eq_metric == 'True Negative Rate'){
+      i = 2
+    } else if(eq_metric == 'Positive Predictive Value'){
+      i = 3
+    } else if(eq_metric == 'Negative Predictive Value'){
+      i = 4
+    } else if(eq_metric == 'Accuracy'){
+      i = 5
+    } else if(eq_metric == 'Selection Rate'){
+      i = 5
+    }
+    ## capture changes
+    values_unchanged = which(dat[i, , drop = FALSE] == as.data.frame(param3_default[[1]])[i, , drop = FALSE])
+    # calculate total change
+    difference <- 1 - sum(dat[i, , drop = FALSE])
+    # Normalize unchanged values (relative to prior value)
+    adjusted_values = dat
+    adjusted_values[i, values_unchanged] <- round(dat[i, values_unchanged] + 
+                                                    (difference * dat[i, values_unchanged] / 
+                                                       sum(dat[i, values_unchanged])), 
+                                                  2)
+    ## update
+    mdl_param3_data$data <- adjusted_values
     # Recalculate bias correction
-    mdl_param3_data$updated <- T
+    mdl_param3_data$updated <- TRUE
   })
+  # Reset param_3 table inputs when "Reset" button is clicked
+   observeEvent(input$mdls_reset_param3, {
+     param3_default <- req(mdl_param3())
+     mdl_param3_data$data <- as.data.frame(param3_default[[1]])
+   })
   
   # Output: group probability interface
   output$mdls_gpprob_menus <- renderUI({
@@ -657,33 +765,29 @@ server <- function(input, output, session) {
         tagList(
           tags$u("Sensitivity parameters"),
           tags$span(popify(
-            actionButton(inputId="mdls_epsilon_info", class = "gpprob_info", label = icon('info')), 
+            actionButton(inputId = "mdls_epsilon_info", class = "gpprob_info", label = icon('info')), 
             title = "",
             content = HTML('<p>Wider parameter ranges correspond to settings with more error in group probabilities. See Descriptions tab for details.</p>'),
             trigger = "focus",
             placement = "bottom"
           ))
         ),
-        sliderInput("mdls_epsilon", label=HTML("&#949"), min=-0.1, max=0.1, value=c(-0.02,0.02), step=0.005),
-        sliderInput("mdls_epsilonp", label=HTML("&#949'"), min=-0.1, max=0.1, value=c(-0.02,0.02), step=0.005),
-        shinyBS::bsCollapse(id = "mdls_collapse_param3",
-                            shinyBS::bsCollapsePanel(
-                              title = "Sensitivity parameters: more details",
-                              style = "primary",
-                              tagList(
-                                tags$span(HTML("Group proportions conditional on Y or Y&#770")),
-                                tags$span(popify(
-                                  actionButton(inputId="mdls_param3_info", class = "gpprob_info", label = icon('info')), 
-                                  title = "",
-                                  content = HTML('<p>These parameters may be estimated from population data or existing studies, as described in the Descriptions tab. Alternatively, use the provided values which are estimated from the uploaded data.</p>'),
-                                  trigger = "focus",
-                                  placement = "bottom"
-                                ))
-                              ),
-                              DT::DTOutput("mdls_t_param3"),
-                              actionButton("mdls_calc_param3", label = "Recalculate")
-                            )
-        )
+        sliderInput("mdls_epsilon", label = HTML("&#949"), min = -0.1, max = 0.1, value = c(-0.02, 0.02), step = 0.005),
+        sliderInput("mdls_epsilonp", label = HTML("&#949'"), min = -0.1, max = 0.1, value = c(-0.02, 0.02), step = 0.005),
+        tagList(
+          tags$span(HTML("Group proportions within designated (sub)-population")),
+          tags$span(popify(
+            actionButton(inputId = "mdls_param3_info", class = "gpprob_info", label = icon('info')), 
+            title = "",
+            content = HTML('<p>These parameters may be estimated from population data or existing studies, as described in the Descriptions tab. Alternatively, use the provided values which are estimated from the uploaded data.</p>'),
+            trigger = "focus",
+            placement = "bottom"
+          ))
+        ),
+        tags$p("Adjust the (sub)-population values by double clicking on the values in the table below. Unchanged values will automatically update to ensure all values sum to 1. (Slight discrepancies may appear due to rounding.)"),
+        DT::DTOutput("mdls_t_param3"),
+        actionButton("mdls_calc_param3", label = "Recalculate"),
+        actionButton("mdls_reset_param3", label = "Reset")
       )
     }
   })
@@ -1109,7 +1213,7 @@ server <- function(input, output, session) {
   })
   # Output: param_3 editable datatable
   output$pp_t_param3 <- DT::renderDT({
-    dat <- round(pp_param3_data$data,2)
+    dat <- round(pp_param3_data$data, 2)
     DT::datatable(dat, editable = TRUE, options = list(dom = 't'),
                   rownames = c("Y=1","Y=0","Y&#770=1","Y&#770=0", "All"), escape = F)
   })

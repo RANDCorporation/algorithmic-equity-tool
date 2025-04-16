@@ -139,7 +139,7 @@ get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime) {
   epsilonp_ret <- list(min_vals = vector(), max_vals = vector())
   
   # TPR
-  epsilon_ret$max_vals['tpr'] <- max(epsilon[which(epsilon>=expec_vec['expec_Y1Yhat1']-1 & epsilon<=expec_vec['expec_Y1Yhat1'])])
+  epsilon_ret$max_vals['tpr'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat1'] - 1 & epsilon <= expec_vec['expec_Y1Yhat1'])])
   epsilonp_ret$max_vals['tpr'] <- max(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Y1Yhat0']-1 & epsilon_prime<=expec_vec['expec_Y1Yhat0'])])
   
   epsilon_ret$min_vals['tpr'] <- min(epsilon[which(epsilon>=expec_vec['expec_Y1Yhat1']-1 & epsilon<=expec_vec['expec_Y1Yhat1'])])
