@@ -102,7 +102,7 @@ ui <- navbarPage(
                      tags$li("G: Group (categorical variable)", 
                              tags$ul(style="list-style-type:none;", tags$li(style="margin-left:-25px;", tags$strong("OR:"), "Group probability columns named G_", tags$em("[group name]")))
                      ),
-                     tags$li("Prob: Predicted probability of outcome"),
+                     #tags$li("Prob: Predicted probability of outcome"),
                      tags$li("Yhat: Predicted outcome (binary, 0/1)"),
                    ),
                    radioButtons("mdls_num", "How many models will you compare?",

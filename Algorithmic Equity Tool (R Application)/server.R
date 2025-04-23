@@ -40,12 +40,19 @@ metric_labs <- c("Selection Rate"="Proportion of Positive Predictions", "False P
                  "True Positive Rate" = "Proportion of True Positives", "True Negative Rate" = "Proportion of True Negatives")
 
 # Validate data uploads
-validateDataset <- function(df){
+validateDataset <- function(df, assessment = TRUE){
   ## check for needed column names
-  validate(need(all(c('Y', 'Prob', 'Yhat') %in% colnames(df)) & 
-                  (length(grep('G', colnames(df), value = TRUE))>0), "Please ensure file contains desired column names. Check 'Before Uploading Data' for desired column names."))
+  if(assessment){
+    validate(need(all(c('Y', 'Yhat') %in% colnames(df)) & 
+                    (length(grep('G', colnames(df), value = TRUE)) > 0), 
+                  "Please ensure file contains desired column names. Check 'Before Uploading Data' for desired column names."))
+  } else if(!assessment){
+    validate(need(all(c('Y', 'Prob', 'Yhat') %in% colnames(df)) & 
+                    (length(grep('G', colnames(df), value = TRUE)) > 0), 
+                  "Please ensure file contains desired column names. Check 'Before Uploading Data' for desired column names."))
+    validate(need(is.numeric(df$Prob), "Probability values need to be numeric."))
+  }
   ## check types
-  validate(need(is.numeric(df$Prob), "Probability values need to be numeric."))
   validate(need(all(unique(df$Y) %in% c(0,1)), "Y values need to be binary."))
   validate(need(all(unique(df$Yhat) %in% c(0,1)), "Yhat values need to be binary."))
   if('G'%in%colnames(df)) {
@@ -191,7 +198,10 @@ server <- function(input, output, session) {
   output$mdls_fileInputs <- renderUI({
     html_ui = " "
     for (i in 1:input$mdls_num){
-      html_ui <- paste0(html_ui, fileInput(paste0("mdls_file",i), label=paste0("Model ",i), accept = ".csv"))
+      html_ui <- paste0(html_ui, 
+                        fileInput(paste0("mdls_file", i), 
+                                  label = paste0("Model ", i), 
+                                  accept = ".csv"))
     }
     HTML(html_ui)
   })
@@ -217,20 +227,21 @@ server <- function(input, output, session) {
         data_is_probs <- FALSE
         data_G_Gprob <- NULL
         inFile <- files[[num]]
-        validate(need(endsWith(inFile$datapath,".csv"), "Please upload a csv file."))
-        df <- read.csv(inFile$datapath, header=T, sep=",")
+        validate(need(endsWith(inFile$datapath, ".csv"), "Please upload a csv file."))
+        df <- read.csv(inFile$datapath, header = T, sep = ",")
         ## Validate df
         validateDataset(df)
         ## Determine if fixed groups or probabilities. If fixed, create indicator vars G_*.
         if('G' %in% colnames(df)) {
           ### If data also contains group probability columns, drop them and add to warning string
-          if(length(grep('G_', colnames(df), value = TRUE))>0) {
-            data_G_Gprob <- paste0("Model ",num," ")
+          if(length(grep('G_', colnames(df), value = TRUE)) > 0) {
+            data_G_Gprob <- paste0("Model ", num, " ")
             df <- select(df, -c(grep('G_', colnames(df), value = TRUE)))
           }
-          G_mat <- model.matrix(~.-1, data = data.frame(G=as.factor(df$G)))
+          G_mat <- model.matrix(~ . -1, data = data.frame(G = as.factor(df$G)))
           colnames(G_mat) <- paste0("G_", unique(df$G))
-          df <- bind_cols(df, G_mat) %>% select(-G)
+          df <- bind_cols(df, G_mat) %>% 
+            select(-G)
         } else {
           data_is_probs <- TRUE
         }
@@ -244,15 +255,17 @@ server <- function(input, output, session) {
           num_gps <- length(grep('G_', colnames(l$data), value = TRUE))
         }
       })
-      validate(need(length(unique(unlist(mdls_gct)))==1, "All models must contain the same number of groups. Please check group variables."))
+      validate(need(length(unique(unlist(mdls_gct))) == 1, "All models must contain the same number of groups. Please check group variables."))
     }
     else{
       return(NULL)
     }
     # Set flag indicating whether any of the uploaded data contains group probabilities
-    if(any(sapply(mdls,function(x) x$is_probs))) {
+    if(any(sapply(mdls,function(x) x$is_probs))){
       any_is_probs <- T
-    } else { any_is_probs <- F }
+    } else{
+      any_is_probs <- F
+      }
     all_G_Gprob <- unlist(lapply(mdls, function(l) l$G_Gprob))
     return(list(mdls = mdls, is_probs = any_is_probs, G_Gprob = all_G_Gprob))
   })
@@ -260,8 +273,8 @@ server <- function(input, output, session) {
   # Output to display warning if data with both 'G' and group probability columns is uploaded
   output$mdls_warn_Gprob <- renderText({
     G_Gprob_str <- req(mdl_objs()$G_Gprob)
-    if(length(G_Gprob_str)>0) {
-      if(length(G_Gprob_str)==1) {
+    if(length(G_Gprob_str) > 0){
+      if(length(G_Gprob_str) == 1){
         models_str <- G_Gprob_str
       } else{
         models_str <- paste0(G_Gprob_str, collapse = "and ")
@@ -269,7 +282,7 @@ server <- function(input, output, session) {
       paste0("Warning: ", models_str, "data contain both 'G' and group probability ('G_') columns. Group probability columns have been dropped.")
     }
   })
-  outputOptions(output, "mdls_warn_Gprob", suspendWhenHidden=FALSE)
+  outputOptions(output, "mdls_warn_Gprob", suspendWhenHidden = FALSE)
   
   # Calculate suggested third sensitivity parameter values for each model
   mdl_param3 <- reactive({
@@ -296,10 +309,10 @@ server <- function(input, output, session) {
     mdls_list <- req(mdl_objs())
     dfs.sub <- lapply(mdls_list$mdls, "[[", "data")
     data_is_probs <- mdls_list$is_probs
-    pro.methods <- paste0("Model ",1:input$mdls_num)
+    pro.methods <- paste0("Model ", 1:input$mdls_num)
     names(dfs.sub) <-  pro.methods
     # Bootstrap equity and performance metrics
-    return_metrics <- get_eq_per_uncertainty(dfs.sub, pro.methods=pro.methods)
+    return_metrics <- get_eq_per_uncertainty(dfs.sub, pro.methods = pro.methods)
     
     return(list(metrics = return_metrics, methods = pro.methods))
   })
@@ -325,29 +338,35 @@ server <- function(input, output, session) {
         equity_metrics <- filter(mdls_bs$metrics, G != "Overall")
         overall_metrics <- filter(mdls_bs$metrics, G == "Overall")
         
-        mdls_bc <- lapply(seq_along(mdls_bs$methods), function(i) {
+        mdls_bc <- lapply(seq_along(mdls_bs$methods), function(i){
           dat_test <- dfs[[i]]
           dat_marg <- filter(overall_metrics, Method == mdls_bs$methods[i])
           ### Loop over groups
-          gp_res <- lapply(unique(equity_metrics$G), function(g) {
+          gp_res <- lapply(unique(equity_metrics$G), function(g){
             dat_bs <- filter(equity_metrics, Method == mdls_bs$methods[i], G == g)
             metrics_cilow <- unlist(as.vector(select(dat_bs, ci_low)))
             metrics_cihigh <- unlist(as.vector(select(dat_bs, ci_high)))
             metrics_mean <- unlist(as.vector(select(dat_bs, mean_est)))
-            names(metrics_cilow) <- names(metrics_cihigh) <- names(metrics_mean) <- dat_bs$metric
+            names(metrics_cilow) <- 
+              names(metrics_cihigh) <- 
+              names(metrics_mean) <- dat_bs$metric
             
             marg_cilow <- unlist(as.vector(select(dat_marg, ci_low)))
             marg_cihigh <- unlist(as.vector(select(dat_marg, ci_high)))
             marg_mean <- unlist(as.vector(select(dat_marg, mean_est)))
-            names(marg_cilow) <- names(marg_cihigh) <- names(marg_mean) <- dat_marg$metric
+            names(marg_cilow) <- 
+              names(marg_cihigh) <- 
+              names(marg_mean) <- dat_marg$metric
             
             dat_gp <- select(dat_test, !!sym(g), Y, Yhat) %>%
-              mutate(G_prob = !!sym(g)) %>% select(-!!sym(g))
+              mutate(G_prob = !!sym(g)) %>% 
+              select(-!!sym(g))
             
             #### Get min/max valid epsilon, epsilon' combinations for each metric
             epsilon_minmax <- get_minmax_epsilon(data_gp = dat_gp, 
                                                  epsilon = seq(min(epsilon), max(epsilon), 0.01), 
-                                                 epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01))
+                                                 epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01),
+                                                 relative_eps = input$mdls_epsilon_rel)
             
             #### Mean bias corrections
             mean_bclow <- get_epsilon_bc(data_gp = dat_gp, 
@@ -775,8 +794,15 @@ server <- function(input, output, session) {
             placement = "bottom"
           ))
         ),
-        sliderInput("mdls_epsilon", label = HTML("&#949"), min = -0.1, max = 0.1, value = c(-0.02, 0.02), step = 0.005),
-        sliderInput("mdls_epsilonp", label = HTML("&#949'"), min = -0.1, max = 0.1, value = c(-0.02, 0.02), step = 0.005),
+        radioButtons("mdls_epsilon_rel", 
+                     label = 'Compute errors as relative (to mean group proportion) or absolute', 
+                     choiceNames = c('Relative',
+                                     'Absolute'),
+                     choiceValues = c(TRUE,
+                                      FALSE),
+                     selected = c('Relative' = TRUE)),
+        sliderInput("mdls_epsilon", label = HTML("&#949"), min = -0.2, max = 0.2, value = c(-0.05, 0.05), step = 0.01),
+        sliderInput("mdls_epsilonp", label = HTML("&#949'"), min = -0.2, max = 0.2, value = c(-0.05, 0.05), step = 0.01),
         tagList(
           tags$span(HTML("Group proportions within designated (sub)-population")),
           tags$span(popify(
@@ -803,7 +829,7 @@ server <- function(input, output, session) {
       return(NULL)
     validate(need(endsWith(inFile$datapath,".csv"), "Please upload a .csv file."))
     input.data <- read.csv(inFile$datapath, header=T, sep=",")
-    validateDataset(input.data)
+    validateDataset(input.data, assessment = FALSE)
     ## Determine if data has fixed or probabilistic groups. If fixed, expand G to G_* indicator variables
     data_is_probs <- data_G_Gprob <- F
     if('G' %in% colnames(input.data)) {
@@ -1294,7 +1320,10 @@ server <- function(input, output, session) {
       cov_types <- case_when(cov_types=="numeric" ~ "Continuous", cov_types=="factor" ~ "Categorical", TRUE ~ "Continuous")
       ## Buttons for selecting type, set to current type (types other than numeric/factor are read as numeric)
       html_list <- lapply(seq_along(cov_cols), function(c){
-        HTML(paste0(cov_cols[[c]], ": ", radioButtons(paste0("vartype_",cov_cols[[c]]), label = NULL, choices = c("Continuous","Categorical"), inline = T,
+        HTML(paste0(cov_cols[[c]], ": ", radioButtons(paste0("vartype_",cov_cols[[c]]), 
+                                                      label = NULL, 
+                                                      choices = c("Continuous", "Categorical"), 
+                                                      inline = T,
                                                       selected = cov_types[[c]])))
       })
       html_list

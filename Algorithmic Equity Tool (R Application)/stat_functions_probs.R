@@ -112,7 +112,7 @@ get_param3 <- function(G_prob, Y, Yhat) {
 ### epsilon: list with components 'max_vals' (vector of max valid epsilon values), 'min_vals' (min valid values), both named by metric
 ### epsilon_prime: same as above for epsilon'
 #######################################################################################################################
-get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime) {
+get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime, relative_eps = TRUE) {
   # Calculate constraints to remove impossible combinations of epsilon, epsilon'
   expec_Y1Yhat1 <- mean(data_gp$G_prob * data_gp$Y * data_gp$Yhat) / mean(data_gp$Y * data_gp$Yhat)
   expec_Y1Yhat0 <- mean(data_gp$G_prob * data_gp$Y * (1 - data_gp$Yhat)) / mean(data_gp$Y * (1 - data_gp$Yhat))
@@ -130,55 +130,93 @@ get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime) {
                        "expec_YneqYhat", 
                        "expec_Yhat1", 
                        "expec_Yhat0")
-  expec_vec <- sapply(expec_vec_names, function(x) { get(x) }, USE.NAMES = T)
+  expec_vec <- sapply(expec_vec_names, 
+                      function(x){ 
+                        get(x) 
+                        }, 
+                      USE.NAMES = T)
   ## Set any NaN expectations to 0
-  expec_vec <- sapply(expec_vec, function(val) {
-    if(is.na(val)) { val <- 0 } else { val }
-  })
+  expec_vec <- sapply(expec_vec, 
+                      function(val){
+                        if(is.na(val)){ 
+                          val <- 0 
+                          } else{ 
+                            val 
+                            }
+                        })
   epsilon_ret <- list(min_vals = vector(), max_vals = vector())
   epsilonp_ret <- list(min_vals = vector(), max_vals = vector())
   
+  ## Multiple epsilon by mean if using relative bias
+  if(relative_eps){
+    epsilon = epsilon * mean(data_gp$G_prob)
+    epsilon_prime = epsilon_prime * mean(data_gp$G_prob)
+  }
   # TPR
-  epsilon_ret$max_vals['tpr'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat1'] - 1 & epsilon <= expec_vec['expec_Y1Yhat1'])])
-  epsilonp_ret$max_vals['tpr'] <- max(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Y1Yhat0']-1 & epsilon_prime<=expec_vec['expec_Y1Yhat0'])])
+  epsilon_ret$max_vals['tpr'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat1'] - 1 & 
+                                                     epsilon <= expec_vec['expec_Y1Yhat1'])])
+  epsilonp_ret$max_vals['tpr'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat0'] - 1 & 
+                                                            epsilon_prime <= expec_vec['expec_Y1Yhat0'])])
   
-  epsilon_ret$min_vals['tpr'] <- min(epsilon[which(epsilon>=expec_vec['expec_Y1Yhat1']-1 & epsilon<=expec_vec['expec_Y1Yhat1'])])
-  epsilonp_ret$min_vals['tpr'] <- min(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Y1Yhat0']-1 & epsilon_prime<=expec_vec['expec_Y1Yhat0'])])
+  epsilon_ret$min_vals['tpr'] <- min(epsilon[which(epsilon>=expec_vec['expec_Y1Yhat1'] - 1 & 
+                                                     epsilon <= expec_vec['expec_Y1Yhat1'])])
+  epsilonp_ret$min_vals['tpr'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat0'] - 1 &
+                                                            epsilon_prime <= expec_vec['expec_Y1Yhat0'])])
   
   # TNR
-  epsilon_ret$max_vals['tnr'] <- max(epsilon[which(epsilon>=expec_vec['expec_Y0Yhat0']-1 & epsilon<=expec_vec['expec_Y0Yhat0'])])
-  epsilonp_ret$max_vals['tnr'] <- max(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Y0Yhat1']-1 & epsilon_prime<=expec_vec['expec_Y0Yhat1'])])
+  epsilon_ret$max_vals['tnr'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat0'] - 1 &
+                                                     epsilon <= expec_vec['expec_Y0Yhat0'])])
+  epsilonp_ret$max_vals['tnr'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat1'] - 1 & 
+                                                            epsilon_prime <= expec_vec['expec_Y0Yhat1'])])
   
-  epsilon_ret$min_vals['tnr'] <- min(epsilon[which(epsilon>=expec_vec['expec_Y0Yhat0']-1 & epsilon<=expec_vec['expec_Y0Yhat0'])])
-  epsilonp_ret$min_vals['tnr'] <- min(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Y0Yhat1']-1 & epsilon_prime<=expec_vec['expec_Y0Yhat1'])])
+  epsilon_ret$min_vals['tnr'] <- min(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat0'] - 1 & 
+                                                     epsilon <= expec_vec['expec_Y0Yhat0'])])
+  epsilonp_ret$min_vals['tnr'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat1'] - 1 &
+                                                            epsilon_prime <= expec_vec['expec_Y0Yhat1'])])
   
   # PPV
-  epsilon_ret$max_vals['ppv'] <- max(epsilon[which(epsilon>=expec_vec['expec_Y1Yhat1']-1 & epsilon<=expec_vec['expec_Y1Yhat1'])])
-  epsilonp_ret$max_vals['ppv'] <- max(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Y0Yhat1']-1 & epsilon_prime<=expec_vec['expec_Y0Yhat1'])])
+  epsilon_ret$max_vals['ppv'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat1'] - 1 &
+                                                     epsilon <= expec_vec['expec_Y1Yhat1'])])
+  epsilonp_ret$max_vals['ppv'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat1'] - 1 &
+                                                            epsilon_prime <= expec_vec['expec_Y0Yhat1'])])
   
-  epsilon_ret$min_vals['ppv'] <- min(epsilon[which(epsilon>=expec_vec['expec_Y1Yhat1']-1 & epsilon<=expec_vec['expec_Y1Yhat1'])])
-  epsilonp_ret$min_vals['ppv'] <- min(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Y0Yhat1']-1 & epsilon_prime<=expec_vec['expec_Y0Yhat1'])])
+  epsilon_ret$min_vals['ppv'] <- min(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat1'] - 1 &
+                                                     epsilon <= expec_vec['expec_Y1Yhat1'])])
+  epsilonp_ret$min_vals['ppv'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat1'] - 1 &
+                                                            epsilon_prime <= expec_vec['expec_Y0Yhat1'])])
   
   # NPV
-  epsilon_ret$max_vals['npv'] <- max(epsilon[which(epsilon>=expec_vec['expec_Y0Yhat0']-1 & epsilon<=expec_vec['expec_Y0Yhat0'])])
-  epsilonp_ret$max_vals['npv'] <- max(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Y1Yhat0']-1 & epsilon_prime<=expec_vec['expec_Y1Yhat0'])])
+  epsilon_ret$max_vals['npv'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat0'] - 1 &
+                                                     epsilon <= expec_vec['expec_Y0Yhat0'])])
+  epsilonp_ret$max_vals['npv'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat0'] - 1 &
+                                                            epsilon_prime <= expec_vec['expec_Y1Yhat0'])])
   
-  epsilon_ret$min_vals['npv'] <- min(epsilon[which(epsilon>=expec_vec['expec_Y0Yhat0']-1 & epsilon<=expec_vec['expec_Y0Yhat0'])])
-  epsilonp_ret$min_vals['npv'] <- min(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Y1Yhat0']-1 & epsilon_prime<=expec_vec['expec_Y1Yhat0'])])
+  epsilon_ret$min_vals['npv'] <- min(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat0'] - 1 &
+                                                     epsilon <= expec_vec['expec_Y0Yhat0'])])
+  epsilonp_ret$min_vals['npv'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat0'] - 1 &
+                                                            epsilon_prime <= expec_vec['expec_Y1Yhat0'])])
   
   # Accuracy
-  epsilon_ret$max_vals['accuracy'] <- max(epsilon[which(epsilon>=expec_vec['expec_YeqYhat']-1 & epsilon<=expec_vec['expec_YeqYhat'])])
-  epsilonp_ret$max_vals['accuracy'] <- max(epsilon_prime[which(epsilon_prime>=expec_vec['expec_YneqYhat']-1 & epsilon_prime<=expec_vec['expec_YneqYhat'])])
+  epsilon_ret$max_vals['accuracy'] <- max(epsilon[which(epsilon >= expec_vec['expec_YeqYhat'] - 1 &
+                                                          epsilon <= expec_vec['expec_YeqYhat'])])
+  epsilonp_ret$max_vals['accuracy'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_YneqYhat'] - 1 &
+                                                                 epsilon_prime <= expec_vec['expec_YneqYhat'])])
   
-  epsilon_ret$min_vals['accuracy'] <- min(epsilon[which(epsilon>=expec_vec['expec_YeqYhat']-1 & epsilon<=expec_vec['expec_YeqYhat'])])
-  epsilonp_ret$min_vals['accuracy'] <- min(epsilon_prime[which(epsilon_prime>=expec_vec['expec_YneqYhat']-1 & epsilon_prime<=expec_vec['expec_YneqYhat'])])
+  epsilon_ret$min_vals['accuracy'] <- min(epsilon[which(epsilon >= expec_vec['expec_YeqYhat'] - 1 &
+                                                          epsilon <= expec_vec['expec_YeqYhat'])])
+  epsilonp_ret$min_vals['accuracy'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_YneqYhat'] - 1 &
+                                                                 epsilon_prime <= expec_vec['expec_YneqYhat'])])
   
   # Selection rate
-  epsilon_ret$max_vals['selrate'] <- max(epsilon[which(epsilon>=expec_vec['expec_Yhat1']-1 & epsilon<=expec_vec['expec_Yhat1'])])
-  epsilonp_ret$max_vals['selrate'] <- max(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Yhat0']-1 & epsilon_prime<=expec_vec['expec_Yhat0'])])
+  epsilon_ret$max_vals['selrate'] <- max(epsilon[which(epsilon >= expec_vec['expec_Yhat1'] - 1 &
+                                                         epsilon <= expec_vec['expec_Yhat1'])])
+  epsilonp_ret$max_vals['selrate'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Yhat0'] - 1 &
+                                                                epsilon_prime <= expec_vec['expec_Yhat0'])])
   
-  epsilon_ret$min_vals['selrate'] <- min(epsilon[which(epsilon>=expec_vec['expec_Yhat1']-1 & epsilon<=expec_vec['expec_Yhat1'])])
-  epsilonp_ret$min_vals['selrate'] <- min(epsilon_prime[which(epsilon_prime>=expec_vec['expec_Yhat0']-1 & epsilon_prime<=expec_vec['expec_Yhat0'])])
+  epsilon_ret$min_vals['selrate'] <- min(epsilon[which(epsilon >= expec_vec['expec_Yhat1'] - 1 &
+                                                         epsilon <= expec_vec['expec_Yhat1'])])
+  epsilonp_ret$min_vals['selrate'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Yhat0'] - 1 &
+                                                                epsilon_prime <= expec_vec['expec_Yhat0'])])
   
   return(list(epsilon = epsilon_ret, epsilon_prime = epsilonp_ret))
 }
