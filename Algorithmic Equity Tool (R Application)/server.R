@@ -34,10 +34,22 @@ metric_funcs <- c("Selection Rate"="selrate_prob", "False Positive Rate"="fpr_pr
                   "Positive Predictive Value"="ppv_prob", "Negative Predictive Value"="npv_prob", "True Positive Rate" = "tpr_prob",
                   "True Negative Rate" = "tnr_prob")
 
-metric_labs <- c("Selection Rate"="Proportion of Positive Predictions", "False Positive Rate"="Proportion of False Positives", 
-                 "False Negative Rate"="Proportion of False Negatives", "Accuracy"="Proportion of Correct Predictions",
-                 "Positive Predictive Value"="Proportion of Correct Positive Predictions", "Negative Predictive Value"="Proportion of Correct Negative Predictions",
-                 "True Positive Rate" = "Proportion of True Positives", "True Negative Rate" = "Proportion of True Negatives")
+metric_labs <- c("Selection Rate" = "Proportion of Positive Predictions", 
+                 "False Positive Rate" = "Proportion of False Positives", 
+                 "False Negative Rate" = "Proportion of False Negatives", 
+                 "Accuracy" = "Proportion of Correct Predictions",
+                 "Positive Predictive Value" = "Proportion of Correct Positive Predictions", 
+                 "Negative Predictive Value" = "Proportion of Correct Negative Predictions",
+                 "True Positive Rate" = "Proportion of True Positives",
+                 "True Negative Rate" = "Proportion of True Negatives")
+metric_labs_diff <- c("Selection Rate" = "Difference in Proportion of Positive Predictions from Group", 
+                      "False Positive Rate" = "Difference in Proportion of False Positives from Group", 
+                      "False Negative Rate" = "Difference in Proportion of False Negatives from Group", 
+                      "Accuracy" = "Difference in Proportion of Correct Predictions from Group",
+                      "Positive Predictive Value" = "Difference in Proportion of Correct Positive Predictions from Group", 
+                      "Negative Predictive Value" = "Difference in Proportion of Correct Negative Predictions from Group",
+                      "True Positive Rate" = "Difference in Proportion of True Positives from Group",
+                      "True Negative Rate" = "Difference in Proportion of True Negatives from Group")
 
 # Validate data uploads
 validateDataset <- function(df, assessment = TRUE){
@@ -265,7 +277,18 @@ server <- function(input, output, session) {
       any_is_probs <- T
     } else{
       any_is_probs <- F
-      }
+    }
+    
+    ## Add data groups to dropdown menu
+    group_names <- grep('G', colnames(mdls[[1]][["data"]]), value = TRUE)
+    updateSelectInput(session = session, 
+                      inputId = "interface_opt_margdiff", 
+                      choices = c('None Selected', group_names))
+    #output$interface_opt_margdiff = input
+    #observe({
+      
+    #})
+    
     all_G_Gprob <- unlist(lapply(mdls, function(l) l$G_Gprob))
     return(list(mdls = mdls, is_probs = any_is_probs, G_Gprob = all_G_Gprob))
   })
@@ -283,6 +306,7 @@ server <- function(input, output, session) {
     }
   })
   outputOptions(output, "mdls_warn_Gprob", suspendWhenHidden = FALSE)
+
   
   # Calculate suggested third sensitivity parameter values for each model
   mdl_param3 <- reactive({
@@ -292,16 +316,18 @@ server <- function(input, output, session) {
     
     if(data_is_probs) {
       # Calculate values for each model
-      param3_list <- lapply(mdls, function(dat) {
+      param3_list <- lapply(mdls, function(dat){
         group_cols <- grep('G', colnames(dat), value = TRUE)
-        apply(dat[,group_cols], 
+        apply(dat[, group_cols], 
               MARGIN = 2,
-              FUN=get_param3,
-              Y=dat$Y, 
-              Yhat=dat$Yhat)
+              FUN = get_param3,
+              Y = dat$Y, 
+              Yhat = dat$Yhat)
       })
       return(param3_list)
-    } else { return(NULL) }
+    } else{
+      return(NULL) 
+      }
   })
   
   # Get equity and performance measures from uploaded data
@@ -313,10 +339,15 @@ server <- function(input, output, session) {
     names(dfs.sub) <-  pro.methods
     # Bootstrap equity and performance metrics
     return_metrics <- get_eq_per_uncertainty(dfs.sub, pro.methods = pro.methods)
-    
+    ## Slow way, subset here
+    return_metrics = return_metrics %>%
+      filter(difference == input$interface_opt_margdiff)
+      
     return(list(metrics = return_metrics, methods = pro.methods))
   })
   
+  ## Need to figure out whether to pass differences as list? compute bias correction over each?
+  ## Slow but easiest way would be to subset prior to bias calculation...
   # Add bias corrections if group probability data
   mdl_tables_bc <- reactive({
     mdls_list <- req(mdl_objs())
@@ -393,7 +424,7 @@ server <- function(input, output, session) {
             cihigh_bc <- get_epsilon_bc(data_gp = dat_gp, 
                                         metric_marg = marg_cihigh, 
                                         metric_vals = metrics_cihigh,
-                                        epsilon=epsilon_minmax$epsilon$max_vals, 
+                                        epsilon = epsilon_minmax$epsilon$max_vals, 
                                         epsilon_prime = epsilon_minmax$epsilon_prime$min_vals, 
                                         param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             #### Combine results in dataframe
@@ -426,37 +457,45 @@ server <- function(input, output, session) {
   mdlsgps_acc_per_plt <- reactive({
     tables_list <- req(mdl_tables_bc())
     tables <- tables_list$tables
+    ## determine if overall or difference
+    if(input$interface_opt_margdiff == 'None Selected'){
+      metrics_labs_plot = metric_labs
+    } else{
+      metrics_labs_plot = metric_labs_diff
+    }
     if(!is.null(tables)) {
       eq_metric <- input$mdlsgps_equity
       per_metric <- input$mdlsgps_performance
       interface <- req(input$interface_opt_mdlsgps)
       
-      equity.df <- tables %>% filter(metric == gsub("_prob", "", metric_funcs[[eq_metric]]), G!="Overall") %>%
-        mutate(Method = stringr::str_wrap(Method, width=10),
-               G_display = if_else(G=="Overall", G, str_split(G, "G_", simplify = T)[,2]),
+      equity.df <- tables %>% 
+        filter(metric == gsub("_prob", "", metric_funcs[[eq_metric]]), G != "Overall") %>%
+        mutate(Method = stringr::str_wrap(Method, width = 10),
+               G_display = if_else(G == "Overall", G, str_split(G, "G_", simplify = T)[, 2]),
                metric_display = eq_metric)
       
-      perform.df <- tables %>% filter(G=="Overall", metric == gsub("_prob", "", metric_funcs[[per_metric]])) %>%
-        mutate(
-          Method = stringr::str_wrap(Method, width=10),
-          metric_display = per_metric,
-          G_display = G
-        )
+      perform.df <- tables %>% 
+        filter(G == "Overall", metric == gsub("_prob", "", metric_funcs[[per_metric]])) %>%
+        mutate(Method = stringr::str_wrap(Method, width=10),
+               metric_display = per_metric,
+               G_display = G)
       
       ## Equity plots
       equity.df$label <- paste0(equity.df$G, equity.df$Method)
       num_mdls <- length(levels(as.factor(equity.df$Method)))
       
-      if(interface=="Models") {
+      if(interface == "Models") {
         ### Models: placeholder for calculating position_dodge final y values to enable hover on the final plot
         if(tables_list$is_probs) {
           equity.plt.placeholder <- ggplot(equity.df, aes(x = mean_est, y = Method, color = G_display, label = paste0(G, Method))) +
             geom_linerange(aes(xmin = mean_low, xmax = mean_high), lwd = 2, position=position_dodge2(width = .25, reverse = T)) +
-            geom_errorbar(aes(xmin = bc_low, xmax = bc_high), width=0.05, alpha = 0.9, position=position_dodge2(width = .25, reverse = T)) +
-            coord_cartesian(xlim = c(0,1))
+            geom_errorbar(aes(xmin = bc_low, xmax = bc_high), width = 0.05, alpha = 0.9, position = position_dodge2(width = .25, reverse = T))
         } else {
           equity.plt.placeholder <- ggplot(equity.df, aes(y = Method, color = G_display, label = paste0(G, Method))) +
-            geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 6, lwd = 1, position=position_dodge2(width = .25, reverse = T)) +
+            geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 6, lwd = 1, position=position_dodge2(width = .25, reverse = T))
+        }
+        if(input$interface_opt_margdiff == 'None Selected'){
+          equity.plt.placeholder = equity.plt.placeholder +
             coord_cartesian(xlim = c(0,1))
         }
         equity_hover_df <- ggplot_build(equity.plt.placeholder)$data[[1]] %>%
@@ -467,8 +506,7 @@ server <- function(input, output, session) {
           equity.plt <- ggplot(equity_hover_df, aes(y = y, color = G_display)) +
             geom_linerange(aes(xmin = mean_low, xmax = mean_high), lwd = 2) +
             geom_errorbar(aes(xmin = bc_low, xmax = bc_high), width=0.05, alpha = 0.9) +
-            coord_cartesian(xlim = c(0,1), ylim = c(0.5,num_mdls+0.5)) +
-            labs(color = "Group", y = NULL, x = metric_labs[[eq_metric]], title = paste0(eq_metric, " by Group")) +
+            labs(color = "Group", y = NULL, x = metrics_labs_plot[[eq_metric]], title = paste0(eq_metric, " by Group")) +
             theme_classic(base_size = 16) +
             theme(legend.position = 'left', panel.grid.major.x = element_line()) +
             #scale_color_manual(values = group_colors) +
@@ -477,13 +515,19 @@ server <- function(input, output, session) {
         } else {
           equity.plt <- ggplot(equity_hover_df, aes(y = y, color = G_display)) +
             geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 6, lwd = 1) +
-            coord_cartesian(xlim = c(0,1), ylim = c(0.5,num_mdls+0.5)) +
-            labs(color = "Group", y = NULL, x = metric_labs[[eq_metric]], title = paste0(eq_metric, " by Group")) +
+            labs(color = "Group", y = NULL, x = metrics_labs_plot[[eq_metric]], title = paste0(eq_metric, " by Group")) +
             theme_classic(base_size = 16) +
             theme(legend.position = 'left', panel.grid.major.x = element_line()) +
             #scale_color_manual(values = group_colors) +
             scale_color_viridis_d(end=0.95) +
             scale_y_continuous(breaks = seq(1, length(levels(as.factor(equity.df$Method)))), labels = levels(as.factor(equity.df$Method)))
+        }
+        if(input$interface_opt_margdiff == 'None Selected'){
+          equity.plt = equity.plt +
+            coord_cartesian(xlim = c(0, 1), ylim = c(0.5, num_mdls + 0.5)) 
+        } else{
+          equity.plt = equity.plt +
+            coord_cartesian(ylim = c(0.5, num_mdls + 0.5)) 
         }
         
       } else if(interface=="Groups") {
@@ -491,12 +535,14 @@ server <- function(input, output, session) {
         if(tables_list$is_probs) {
           equity.plt.placeholder <- ggplot(equity.df, aes(x = mean_est, y = G_display, color = Method, label = paste0(G, Method))) +
             geom_linerange(aes(xmin = mean_low, xmax = mean_high), lwd = 2, position=position_dodge2(width = .25, reverse = T)) +
-            geom_errorbar(aes(xmin = bc_low, xmax = bc_high), width=0.05, alpha = 0.9, position=position_dodge2(width = .25, reverse = T)) +
-            coord_cartesian(xlim = c(0,1))
+            geom_errorbar(aes(xmin = bc_low, xmax = bc_high), width=0.05, alpha = 0.9, position=position_dodge2(width = .25, reverse = T))
         } else {
           equity.plt.placeholder <- ggplot(equity.df, aes(y = G_display, shape = Method, color = G_display, label = paste0(G, Method))) +
-            geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 8, lwd = 1, position=position_dodge2(width = .25, reverse = T)) +
-            coord_cartesian(xlim = c(0,1))
+            geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 8, lwd = 1, position=position_dodge2(width = .25, reverse = T))
+        }
+        if(input$interface_opt_margdiff == 'None Selected'){
+          equity.plt.placeholder = equity.plt.placeholder +
+            coord_cartesian(xlim = c(0, 1))
         }
         equity_hover_df <- ggplot_build(equity.plt.placeholder)$data[[1]] %>%
           left_join(equity.df, by = "label")
@@ -506,8 +552,7 @@ server <- function(input, output, session) {
           equity.plt <- ggplot(equity_hover_df, aes(y = y, color = Method)) +
             geom_linerange(aes(xmin = mean_low, xmax = mean_high), lwd = 2) +
             geom_errorbar(aes(xmin = bc_low, xmax = bc_high), width=0.05, alpha = 0.9) +
-            coord_cartesian(xlim = c(0,1)) +
-            labs(shape = "Model", color = "Group", y = NULL, x = metric_labs[[eq_metric]], title = paste0(eq_metric, " by Group")) +
+            labs(shape = "Model", color = "Group", y = NULL, x = metrics_labs_plot[[eq_metric]], title = paste0(eq_metric, " by Group")) +
             theme_classic(base_size = 16) +
             theme(legend.position = 'left', panel.grid.major.x = element_line()) +
             #scale_color_manual(values = model_colors) +
@@ -517,8 +562,7 @@ server <- function(input, output, session) {
         } else {
           equity.plt <- ggplot(equity_hover_df, aes(y = y, shape = Method, color = G_display)) +
             geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 8, lwd = 1) +
-            coord_cartesian(xlim = c(0,1)) +
-            labs(shape = "Model", color = "Group", y = NULL, x = metric_labs[[eq_metric]], title = paste0(eq_metric, " by Group")) +
+            labs(shape = "Model", color = "Group", y = NULL, x = metrics_labs_plot[[eq_metric]], title = paste0(eq_metric, " by Group")) +
             theme_classic(base_size = 16) +
             theme(legend.position = 'left', panel.grid.major.x = element_line()) +
             scale_shape_manual(values = model_shapes) +
@@ -528,17 +572,21 @@ server <- function(input, output, session) {
             guides(color = guide_legend(reverse = T),
                    shape = guide_legend(override.aes = list(size = .75 )))
         }
+        if(input$interface_opt_margdiff == 'None Selected'){
+          equity.plt = equity.plt +
+            coord_cartesian(xlim = c(0, 1)) 
+        }
       }
       
       ## Performance plots
       perform.df$label <- paste0(perform.df$G, perform.df$Method)
       num_gps <- length(levels(as.factor(equity.df$G_display)))
       
-      if(interface=="Models") {
+      if(interface == "Models") {
         ### Models: placeholder plot -- use to keep variable names consistent with jittered plots for hover function
         perform.plt.placeholder <- ggplot(perform.df, aes(y = Method, label = paste0(G, Method))) +
           geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 4, lwd = 1) +
-          coord_cartesian(xlim = c(0,1))
+          coord_cartesian(xlim = c(0, 1))
         
         perform_hover_df <- ggplot_build(perform.plt.placeholder)$data[[1]] %>%
           left_join(perform.df, by = "label")
@@ -546,13 +594,17 @@ server <- function(input, output, session) {
         ### Models: display plot
         perform.plt <- ggplot(perform_hover_df, aes(y = y)) +
           geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 4, lwd = 1) +
-          coord_cartesian(xlim = c(0,1),  ylim = c(0.5,num_mdls+0.5)) +
-          labs(y = NULL, x = metric_labs[[per_metric]], title = paste0("Overall ", per_metric)) +
+          coord_cartesian(ylim = c(0.5, num_mdls + 0.5)) +
+          labs(y = NULL, x = metrics_labs_plot[[per_metric]], title = paste0("Overall ", per_metric)) +
           theme_classic(base_size = 16) +
           theme(legend.position = 'none', panel.grid.major.x = element_line()) +
           scale_y_continuous(breaks = seq(1, length(levels(as.factor(equity.df$Method)))), labels = levels(as.factor(equity.df$Method)))
         
-      } else if(interface=="Groups") {
+        if(input$interface_opt_margdiff == 'None Selected'){
+          perform.plt = perform.plt +
+            coord_cartesian(xlim = c(0, 1)) 
+        }
+      } else if(interface == "Groups") {
         ### Groups: placeholder for calculating position_dodge
         if(tables_list$is_probs) {
           perform.plt.placeholder <- ggplot(perform.df, aes(y = G, color = Method, label = paste0(G, Method))) +
@@ -573,8 +625,8 @@ server <- function(input, output, session) {
         if(tables_list$is_probs) {
           perform.plt <- ggplot(perform_hover_df, aes(y = y_med, color = Method)) +
             geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 4, lwd = 1) +
-            coord_cartesian(xlim = c(0,1), ylim = c(1,num_gps)) +
-            labs(shape = "Model", y = NULL, x = metric_labs[[per_metric]], title = paste0("Overall ", per_metric)) +
+            coord_cartesian(ylim = c(1, num_gps)) +
+            labs(shape = "Model", y = NULL, x = metrics_labs_plot[[per_metric]], title = paste0("Overall ", per_metric)) +
             theme_classic(base_size = 16) +
             theme(legend.position = 'none', panel.grid.major.x = element_line()) +
             #scale_color_manual(values = model_colors) +
@@ -583,12 +635,16 @@ server <- function(input, output, session) {
         } else {
           perform.plt <- ggplot(perform_hover_df, aes(y = y_med, shape = Method)) +
             geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 4, lwd = 1) +
-            coord_cartesian(xlim = c(0,1), ylim = c(1,num_gps)) +
-            labs(shape = "Model", y = NULL, x = metric_labs[[per_metric]], title = paste0("Overall ", per_metric)) +
+            coord_cartesian(ylim = c(1, num_gps)) +
+            labs(shape = "Model", y = NULL, x = metrics_labs_plot[[per_metric]], title = paste0("Overall ", per_metric)) +
             theme_classic(base_size = 16) +
             theme(legend.position = 'none', panel.grid.major.x = element_line()) +
             scale_shape_manual(values = model_shapes) +
             scale_y_continuous(breaks = median(seq(1,num_gps)), labels = "Overall")
+        }
+        if(input$interface_opt_margdiff == 'None Selected'){
+          perform.plt = perform.plt +
+            coord_cartesian(xlim = c(0, 1)) 
         }
       }
       
@@ -924,7 +980,7 @@ server <- function(input, output, session) {
                             Threshold = thresh)
     
     # Bootstrap equity and performance metrics
-    return_metrics <- get_eq_per_uncertainty(dfs, pro.methods=pro.methods)
+    return_metrics <- get_eq_per_uncertainty(dfs, pro.methods = pro.methods)
     return(list(metrics = return_metrics, methods = pro.methods, thresh.df = thresh.df))
   })
   # Add bias corrections if group probability data

@@ -232,7 +232,13 @@ get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime, relative_eps = T
 ## Outputs: 
 ### Named vector of bias-corrected metrics
 #######################################################################################################################
-get_epsilon_bc <- function(data_gp, metric_marg, metric_vals, epsilon, epsilon_prime, param_3) {
+get_epsilon_bc <- function(data_gp, 
+                           metric_marg, 
+                           metric_vals, 
+                           epsilon, 
+                           epsilon_prime, 
+                           param_3,
+                           bias_only = FALSE) {
   
   # Verify all metrics are included in all inputs
   metric_names <- c("tpr", "tnr", "ppv", "npv", "accuracy", "selrate")
@@ -242,34 +248,38 @@ get_epsilon_bc <- function(data_gp, metric_marg, metric_vals, epsilon, epsilon_p
   }
   
   # Calculate bias corrections and bias-corrected metrics
-  return_vec <- vector(length = length(metric_vals))
-  names(return_vec) <- names(metric_vals)
+  return_vec = bias_vec = vector(length = length(metric_vals))
+  names(return_vec) = names(bias_vec) = names(metric_vals)
   ## TPR
-  bias_epsilon_tpr <- ((1 - metric_vals['tpr']) * metric_marg['tpr'] * epsilon['tpr'] - 
+  bias_vec['tpr'] <- ((1 - metric_vals['tpr']) * metric_marg['tpr'] * epsilon['tpr'] - 
                          metric_vals['tpr'] * (1 - metric_marg['tpr']) * epsilon_prime['tpr']) / param_3[1]
-  return_vec['tpr'] <- metric_vals['tpr'] + bias_epsilon_tpr
+  return_vec['tpr'] <- metric_vals['tpr'] + bias_vec['tpr']
   ## TNR
-  bias_epsilon_tnr <- ((1 - metric_vals['tnr']) * metric_marg['tnr'] * epsilon['tnr'] - 
+  bias_vec['tnr'] <- ((1 - metric_vals['tnr']) * metric_marg['tnr'] * epsilon['tnr'] - 
                          metric_vals['tnr'] * (1 - metric_marg['tnr']) * epsilon_prime['tnr']) / param_3[2]
-  return_vec['tnr'] <- metric_vals['tnr'] + bias_epsilon_tnr
+  return_vec['tnr'] <- metric_vals['tnr'] + bias_vec['tnr']
   ## PPV
-  bias_epsilon_ppv <- ((1 - metric_vals['ppv']) * metric_marg['ppv'] * epsilon['ppv'] - 
+  bias_vec['ppv'] <- ((1 - metric_vals['ppv']) * metric_marg['ppv'] * epsilon['ppv'] - 
                          metric_vals['ppv'] * (1 - metric_marg['ppv']) * epsilon_prime['ppv']) / param_3[3]
-  return_vec['ppv'] <- metric_vals['ppv'] + bias_epsilon_ppv
+  return_vec['ppv'] <- metric_vals['ppv'] + bias_vec['ppv']
   ## NPV
-  bias_epsilon_npv <- ((1 - metric_vals['npv']) * metric_marg['npv'] * epsilon['npv'] - 
+  bias_vec['npv'] <- ((1 - metric_vals['npv']) * metric_marg['npv'] * epsilon['npv'] - 
                          metric_vals['npv'] * (1 - metric_marg['npv']) * epsilon_prime['npv']) / param_3[4]
-  return_vec['npv'] <- metric_vals['npv'] + bias_epsilon_npv
+  return_vec['npv'] <- metric_vals['npv'] + bias_vec['npv']
   ## Accuracy
-  bias_epsilon_acc <- ((1 - metric_vals['accuracy']) * metric_marg['accuracy'] * epsilon['accuracy'] - 
+  bias_vec['accuracy'] <- ((1 - metric_vals['accuracy']) * metric_marg['accuracy'] * epsilon['accuracy'] - 
                          metric_vals['accuracy'] * (1 - metric_marg['accuracy']) * epsilon_prime['accuracy']) / param_3[5]
-  return_vec['accuracy'] <- metric_vals['accuracy'] + bias_epsilon_acc
+  return_vec['accuracy'] <- metric_vals['accuracy'] + bias_vec['accuracy']
   ## Selection rate
-  bias_epsilon_selrate <- ((1 - metric_vals['selrate']) * metric_marg['selrate'] * epsilon['selrate'] - 
+  bias_vec['selrate'] <- ((1 - metric_vals['selrate']) * metric_marg['selrate'] * epsilon['selrate'] - 
                              metric_vals['selrate'] * (1 - metric_marg['selrate']) * epsilon_prime['selrate']) / param_3[5]
-  return_vec['selrate'] <- metric_vals['selrate'] + bias_epsilon_selrate
+  return_vec['selrate'] <- metric_vals['selrate'] + bias_vec['selrate']
   
-  return(return_vec)
+  if(bias_only){
+    return(bias_vec)
+  } else{
+    return(return_vec)
+    }
 }
 
 # Get metric values overall and by group for a vector of metric functions ############
@@ -283,20 +293,20 @@ get_epsilon_bc <- function(data_gp, metric_marg, metric_vals, epsilon, epsilon_p
 ### tibble with metric values for each group and combined (Value) plus metric and G columns
 ######################################################################################
 get_metrics_by_race_vec <- function(data, group_mat, metrics){
-  metric_vec <- unlist(lapply(metrics, function(m) {
-    c(get(m)(g_prob = NULL,
-             Y = data$Y, 
-             Yhat = data$Yhat),
-      apply(group_mat, 
-            MARGIN = 2,
-            FUN=get(m),
-            Y=data$Y, 
-            Yhat=data$Yhat))
-  }))
-  metric_df <- cbind(
-    expand_grid(metric = metrics, G = c("Overall", paste0("G_", 1:ncol(group_mat)))),
-    Value = metric_vec
-  )
+  metric_vec <- unlist(lapply(metrics, 
+                              function(m){
+                                c(get(m)(g_prob = NULL,
+                                         Y = data$Y, 
+                                         Yhat = data$Yhat),
+                                  apply(group_mat, 
+                                        MARGIN = 2,
+                                        FUN = get(m),
+                                        Y = data$Y, 
+                                        Yhat = data$Yhat))
+                              }))
+  metric_df <- cbind(expand_grid(metric = metrics, 
+                                 G = c("Overall", paste0("G_", 1:ncol(group_mat)))),
+                     Value = metric_vec)
   return(metric_df)
 }
 
@@ -338,14 +348,23 @@ get_equity_performance <- function(dfs, pro.methods, eq_metric, per_metric){
 ##########################################################################################
 get_eq_per_uncertainty <- function(dfs, pro.methods) {
   metrics_bs <- lapply(dfs, function(d) {
-    bootstrap_sample(d, B = 500, alpha = 0.05, ci_types = "perc",
-                     metrics = c("accuracy", "selrate", "tnr", "tpr", "ppv","npv"),
+    bootstrap_sample(d, 
+                     B = 500, 
+                     alpha = 0.05, 
+                     ci_types = "perc",
+                     metrics = c("accuracy", "selrate", "tnr", "tpr", "ppv", "npv"),
                      parallel_opt = parallel_opt_set)
   })
   ## Bind bootstrap results from all dfs together
   return_metrics <- metrics_bs %>% 
     bind_rows(.id = "Method") %>% 
-    select(Method, metric, G, mean_est, ci_low, ci_high)
+    select(Method, 
+           metric, 
+           G, 
+           difference,
+           mean_est,
+           ci_low,
+           ci_high)
   return(return_metrics)
 }
 

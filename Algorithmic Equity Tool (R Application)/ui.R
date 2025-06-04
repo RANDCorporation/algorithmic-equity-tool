@@ -115,6 +115,8 @@ ui <- navbarPage(
                                choices = c("Accuracy", "Selection Rate", "True Negative Rate", "True Positive Rate", "Positive Predictive Value", "Negative Predictive Value")),
                    radioButtons(inputId = "interface_opt_mdlsgps", label = "Choose which to compare:",
                                 choices = c("Models", "Groups"), selected = "Models", inline = T),
+                   selectInput(inputId = "interface_opt_margdiff", label = "Show Results as Difference from Selected Group",
+                               choices = c("None Selected"), selected = "None Selected"),
                    uiOutput("mdls_gpprob_menus")
       ),
       mainPanel(
