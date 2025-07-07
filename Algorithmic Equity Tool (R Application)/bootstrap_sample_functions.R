@@ -9,18 +9,78 @@ if(.Platform$OS.type == "windows") {
 ## Inputs:
 ### data: full data set
 ### bs_ind: indices provided by boot:boot call
-### group_cols: group columns from full data set
+### group_cols: names of group columns from full data set
 ### metrics: vector of performance metric functions
 
 ## Outputs:
 ### vector of performance metric values. ordered by metric, then groups (combined then group factor level order)
 ###############################################################################################################################
-bootstrap_only <- function(data, bs_ind, group_cols, metrics) {
+bootstrap_only <- function(bs_ind,
+                           data, 
+                           group_cols, 
+                           metrics,
+                           epsilon,
+                           epsilon_prime,
+                           relative_eps,
+                           param3) {
   # Get bootstrap sample
   data_bs <- data[bs_ind,]
-  group_cols_bs <- group_cols[bs_ind,]
-  bs_val <- get_metrics_by_race_vec(data = data_bs, group_mat = group_cols_bs, metrics = metrics)
-  return(bs_val$Value)
+  group_cols_bs <- data[bs_ind, group_cols]
+  bs_val <- get_metrics_by_race_vec(data = data_bs, 
+                                    group_mat = group_cols_bs, 
+                                    metrics = metrics) %>%
+    pivot_wider(names_from = G, 
+                values_from = Value) %>%
+    mutate(metric = sub('_prob', '', metric))
+  
+  ## compute bias range for each boot
+  epsilon_minmax = get_minmax_epsilon(group_cols,
+                                      data_input = data_bs, 
+                                      epsilon = epsilon, 
+                                      epsilon_prime = epsilon_prime,
+                                      compute_relative = relative_eps)
+  
+  #### Mean bias corrections
+  marg_mean = bs_val %>%
+    pull(Overall)
+  names(marg_mean) = bs_val %>%
+    pull(metric)
+  metrics_mean = lapply(group_cols, 
+                        function(group){
+                          temp = bs_val %>%
+                            pull(group)
+                          names(temp) = bs_val %>%
+                            pull(metric)
+                          return(temp)
+                        })
+  names(metrics_mean) = group_cols
+  bias_est1 = get_epsilon_bc(group_cols,
+                             metric_marg = marg_mean, 
+                             metric_vals = metrics_mean,
+                             epsilon = epsilon_minmax$epsilon$min_vals, 
+                             epsilon_prime = epsilon_minmax$epsilon_prime$max_vals, 
+                             param_3 = param3)
+  bias_est2 = get_epsilon_bc(group_cols,
+                             metric_marg = marg_mean, 
+                             metric_vals = metrics_mean,
+                             epsilon = epsilon_minmax$epsilon$max_vals, 
+                             epsilon_prime = epsilon_minmax$epsilon_prime$min_vals, 
+                             param_3 = param3)
+  
+  out = bs_val %>% 
+    pivot_longer(c(Overall, contains('G')), names_to = 'G') %>% 
+    pivot_wider(names_from = c(metric), values_from = value) %>%
+    mutate(est = 'no_bias') %>%
+    bind_rows(bind_rows(bias_est1) %>%
+                mutate(G = group_cols,
+                       est = 'lower_bias')) %>%
+    bind_rows(bind_rows(bias_est2) %>%
+                mutate(G = group_cols,
+                       est = 'upper_bias')) %>%
+    pivot_longer(c(-G, -est), names_to = 'metric', values_to = 'value') %>%
+    pivot_wider(names_from = est, values_from = value)
+    
+  return(out)
 }
 
 
@@ -119,7 +179,10 @@ bootstrap_sample <- function(data,
                         names(temp_vec) <- temp_cols
                         bind_rows(temp_vec)
                       } else{
-                        ci_result <- boot::boot.ci(result_bs, conf = 1 - alpha, type = ci_types, index = est_ind)
+                        ci_result <- boot::boot.ci(result_bs, 
+                                                   conf = 1 - alpha, 
+                                                   type = ci_types, 
+                                                   index = est_ind)
                         ci_diffs <- lapply(result_diffs,
                                           boot::boot.ci, 
                                           conf = 1 - alpha, 

@@ -331,117 +331,94 @@ server <- function(input, output, session) {
   })
   
   # Get equity and performance measures from uploaded data
+  # Now includes bias corrections
   mdl_tables <- reactive({
     mdls_list <- req(mdl_objs())
     dfs.sub <- lapply(mdls_list$mdls, "[[", "data")
-    data_is_probs <- mdls_list$is_probs
-    pro.methods <- paste0("Model ", 1:input$mdls_num)
-    names(dfs.sub) <-  pro.methods
-    # Bootstrap equity and performance metrics
-    return_metrics <- get_eq_per_uncertainty(dfs.sub, pro.methods = pro.methods)
-    ## Slow way, subset here
-    return_metrics = return_metrics %>%
-      filter(difference == input$interface_opt_margdiff)
-      
-    return(list(metrics = return_metrics, methods = pro.methods))
-  })
-  
-  ## Need to figure out whether to pass differences as list? compute bias correction over each?
-  ## Slow but easiest way would be to subset prior to bias calculation...
-  # Add bias corrections if group probability data
-  mdl_tables_bc <- reactive({
-    mdls_list <- req(mdl_objs())
-    ## Get bootstrapped metrics
-    mdls_bs <- req(mdl_tables())
-    if(mdls_list$is_probs) {
+    if(mdls_list$is_probs){
+      pro.methods <- paste0("Model ", 1:input$mdls_num)
+      names(dfs.sub) <-  pro.methods
       ## Get param_3 values
       param3_init <- req(mdl_param3_table())
       ### Set dependence on "Recalculate" button so this section will re-run when button is pressed
       mdl_param3_data$updated
-      param3_update <- isolate(mdl_param3_data$data)
-      ## Get epsilon, epsilon' values (dependence so this section will re-run if values change)
-      epsilon <- input$mdls_epsilon
-      epsilon_prime <- input$mdls_epsilonp
-      if(!is.null(epsilon) & !is.null(epsilon_prime)) {
-        ## Get data for each model
-        dfs <- lapply(mdls_list$mdls, "[[", "data")
-        ## Calculate bias corrections for each model
-        equity_metrics <- filter(mdls_bs$metrics, G != "Overall")
-        overall_metrics <- filter(mdls_bs$metrics, G == "Overall")
+      param_3_update = isolate(mdl_param3_data$data)
+      # Bootstrap equity and performance metrics
+      return_metrics <- get_eq_per_uncertainty(dfs.sub, 
+                                               pro.methods = pro.methods,
+                                               epsilon = input$mdls_epsilon,
+                                               epsilon_prime = input$mdls_epsilonp,
+                                               param3_update = param_3_update,
+                                               relative_eps = TRUE) ## THIS IS BROKEN
+      return(list(metrics = return_metrics, methods = pro.methods)) 
+    } else{
+      ## Need to update this - ideally we wouldn't base it on probs, but instead on whether someone checks a "bias" adjustment box
+      return(list(tables = NULL, 
+                  is_probs = F))
+    }
+  })
+  
+  # Create tables for plotting
+  # Including whether we want differences or not
+  mdl_tables_bc = reactive({
+    mdls_list <- req(mdl_objs())
+    ## Get bootstrapped metrics
+    mdls_bs <- req(mdl_tables())
+    if(mdls_list$is_probs){
+      if(!is.null(input$mdls_epsilon) & !is.null(input$mdls_epsilonp)) {
+        if(input$interface_opt_margdiff == 'None Selected'){
+          overall_metrics = mdls_bs$metrics %>%
+            filter(G == 'Overall') %>%
+            group_by(metric) %>%
+            reframe(mean_est = mean(no_bias),
+                    mean_low = quantile(no_bias, 0.025, na.rm = TRUE),
+                    mean_high = quantile(no_bias, 0.975, na.rm = TRUE))
+        } else{
+          overall_metrics = mdls_bs$metrics %>%
+            group_by(rep) %>%
+            mutate(no_bias_diff = no_bias - no_bias[G == input$interface_opt_margdiff]) %>%
+            filter(G == 'Overall') %>%
+            group_by(metric) %>%
+            reframe(mean_est = mean(no_bias_diff),
+                    mean_low = quantile(no_bias_diff, 0.025, na.rm = TRUE),
+                    mean_high = quantile(no_bias_diff, 0.975, na.rm = TRUE))
+        }
+        
         
         mdls_bc <- lapply(seq_along(mdls_bs$methods), function(i){
-          dat_test <- dfs[[i]]
-          dat_marg <- filter(overall_metrics, Method == mdls_bs$methods[i])
-          ### Loop over groups
-          gp_res <- lapply(unique(equity_metrics$G), function(g){
-            dat_bs <- filter(equity_metrics, Method == mdls_bs$methods[i], G == g)
-            metrics_cilow <- unlist(as.vector(select(dat_bs, ci_low)))
-            metrics_cihigh <- unlist(as.vector(select(dat_bs, ci_high)))
-            metrics_mean <- unlist(as.vector(select(dat_bs, mean_est)))
-            names(metrics_cilow) <- 
-              names(metrics_cihigh) <- 
-              names(metrics_mean) <- dat_bs$metric
-            
-            marg_cilow <- unlist(as.vector(select(dat_marg, ci_low)))
-            marg_cihigh <- unlist(as.vector(select(dat_marg, ci_high)))
-            marg_mean <- unlist(as.vector(select(dat_marg, mean_est)))
-            names(marg_cilow) <- 
-              names(marg_cihigh) <- 
-              names(marg_mean) <- dat_marg$metric
-            
-            dat_gp <- select(dat_test, !!sym(g), Y, Yhat) %>%
-              mutate(G_prob = !!sym(g)) %>% 
-              select(-!!sym(g))
-            
-            #### Get min/max valid epsilon, epsilon' combinations for each metric
-            epsilon_minmax <- get_minmax_epsilon(data_gp = dat_gp, 
-                                                 epsilon = seq(min(epsilon), max(epsilon), 0.01), 
-                                                 epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01),
-                                                 relative_eps = input$mdls_epsilon_rel)
-            
-            #### Mean bias corrections
-            mean_bclow <- get_epsilon_bc(data_gp = dat_gp, 
-                                         metric_marg = marg_mean, 
-                                         metric_vals = metrics_mean,
-                                         epsilon = epsilon_minmax$epsilon$min_vals, 
-                                         epsilon_prime = epsilon_minmax$epsilon_prime$max_vals, 
-                                         param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
-            mean_bchigh <- get_epsilon_bc(data_gp = dat_gp, 
-                                          metric_marg = marg_mean, 
-                                          metric_vals = metrics_mean,
-                                          epsilon = epsilon_minmax$epsilon$max_vals, 
-                                          epsilon_prime = epsilon_minmax$epsilon_prime$min_vals, 
-                                          param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
-            
-            #### Low CI endpoint bias correction
-            cilow_bc <- get_epsilon_bc(data_gp = dat_gp, 
-                                       metric_marg = marg_cilow, 
-                                       metric_vals = metrics_cilow,
-                                       epsilon = epsilon_minmax$epsilon$min_vals, 
-                                       epsilon_prime = epsilon_minmax$epsilon_prime$max_vals, 
-                                       param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
-            #### High CI endpoint bias correction
-            cihigh_bc <- get_epsilon_bc(data_gp = dat_gp, 
-                                        metric_marg = marg_cihigh, 
-                                        metric_vals = metrics_cihigh,
-                                        epsilon = epsilon_minmax$epsilon$max_vals, 
-                                        epsilon_prime = epsilon_minmax$epsilon_prime$min_vals, 
-                                        param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
-            #### Combine results in dataframe
-            gp_df <- data.frame(
-              metric = dat_bs$metric,
-              mean_est = dat_bs$mean_est
-            )
-            ##### Trim all at 0 and 1
-            gp_df$bc_low <- trunc_01(cilow_bc[gp_df$metric])
-            gp_df$bc_high <- trunc_01(cihigh_bc[gp_df$metric])
-            gp_df$mean_low <- trunc_01(mean_bclow[gp_df$metric])
-            gp_df$mean_high <- trunc_01(mean_bchigh[gp_df$metric])
-            
-            return(gp_df)
-          })
-          names(gp_res) <- unique(equity_metrics$G)
-          gp_res %>% bind_rows(.id = "G")
+          ## Each group rates individually selected
+          if(input$interface_opt_margdiff == 'None Selected'){
+            res_df = mdls_bs$metrics %>%
+              filter(Method == mdls_bs$methods[i]) %>%
+              group_by(G,
+                       metric) %>%
+              reframe(mean_est = mean(no_bias, na.rm = TRUE),
+                      no_bias_lower = quantile(no_bias, 0.025, na.rm = TRUE),
+                      no_bias_upper = quantile(no_bias, 0.975, na.rm = TRUE),
+                      bc_low = quantile(lower_bias, 0.025, na.rm = TRUE),
+                      bc_high = quantile(upper_bias, 0.975, na.rm = TRUE)) %>%
+              mutate(mean_low = bc_low - no_bias_lower + mean_est,
+                     mean_high = bc_high - no_bias_upper + mean_est)
+          }
+          ## When difference from a group is selected 
+          else{ 
+            res_df = mdls_bs$metrics %>%
+              filter(Method == mdls_bs$methods[i]) %>%
+              group_by(rep) %>%
+              mutate(no_bias_diff = no_bias - no_bias[G == input$interface_opt_margdiff],
+                     lower_bias_diff = lower_bias - lower_bias[G == input$interface_opt_margdiff],
+                     upper_bias_diff = upper_bias - upper_bias[G == input$interface_opt_margdiff]) %>%
+              group_by(G,
+                       metric) %>%
+              reframe(mean_est = mean(no_bias_diff, na.rm = TRUE),
+                      no_bias_lower = quantile(no_bias_diff, 0.025, na.rm = TRUE),
+                      no_bias_upper = quantile(no_bias_diff, 0.975, na.rm = TRUE),
+                      bc_low = quantile(lower_bias_diff, 0.025, na.rm = TRUE),
+                      bc_high = quantile(upper_bias_diff, 0.975, na.rm = TRUE)) %>%
+              mutate(mean_low = bc_low - no_bias_lower + mean_est,
+                     mean_high = bc_high - no_bias_upper + mean_est)
+          }
+          return(res_df)
         })
         names(mdls_bc) <- mdls_bs$methods
         full_bc <- mdls_bc %>% 
@@ -449,9 +426,120 @@ server <- function(input, output, session) {
           bind_rows(mutate(overall_metrics, bc_low = NA_real_, bc_high = NA_real_))
         
         return(list(tables = full_bc, is_probs = T))
-      } else { return(list(tables = NULL, is_probs = T)) }
-    } else { return(list(tables = mdls_bs$metrics, is_probs = F)) }
+      } else{ 
+          return(list(tables = NULL, 
+                      is_probs = T))
+        }
+    } else{
+      ## Need to update this - ideally we wouldn't base it on probs, but instead on whether someone checks a "bias" adjustment box
+        return(list(tables = mdls_bs$metrics, 
+                    is_probs = F))
+      }
   })
+  
+  ## Need to figure out whether to pass differences as list? compute bias correction over each?
+  ## Slow but easiest way would be to subset prior to bias calculation...
+  # Add bias corrections if group probability data
+  # mdl_tables_bc <- reactive({
+  #   mdls_list <- req(mdl_objs())
+  #   ## Get bootstrapped metrics
+  #   mdls_bs <- req(mdl_tables())
+  #   if(mdls_list$is_probs) {
+  #     ## Get param_3 values
+  #     param3_init <- req(mdl_param3_table())
+  #     ### Set dependence on "Recalculate" button so this section will re-run when button is pressed
+  #     mdl_param3_data$updated
+  #     param3_update <- isolate(mdl_param3_data$data)
+  #     ## Get epsilon, epsilon' values (dependence so this section will re-run if values change)
+  #     epsilon <- input$mdls_epsilon
+  #     epsilon_prime <- input$mdls_epsilonp
+  #     if(!is.null(epsilon) & !is.null(epsilon_prime)) {
+  #       ## Get data for each model
+  #       dfs <- lapply(mdls_list$mdls, "[[", "data")
+  #       ## Calculate bias corrections for each model
+  #       equity_metrics <- filter(mdls_bs$metrics, G != "Overall")
+  #       overall_metrics <- filter(mdls_bs$metrics, G == "Overall")
+  #       
+  #       mdls_bc <- lapply(seq_along(mdls_bs$methods), function(i){
+  #         dat_test <- dfs[[i]]
+  #         dat_marg <- filter(overall_metrics, Method == mdls_bs$methods[i])
+  #         ### Loop over groups
+  #         gp_res <- lapply(unique(equity_metrics$G), function(g){
+  #           dat_bs <- filter(equity_metrics, Method == mdls_bs$methods[i], G == g)
+  #           metrics_cilow <- unlist(as.vector(select(dat_bs, ci_low)))
+  #           metrics_cihigh <- unlist(as.vector(select(dat_bs, ci_high)))
+  #           metrics_mean <- unlist(as.vector(select(dat_bs, mean_est)))
+  #           names(metrics_cilow) <- 
+  #             names(metrics_cihigh) <- 
+  #             names(metrics_mean) <- dat_bs$metric
+  #           
+  #           marg_cilow <- unlist(as.vector(select(dat_marg, ci_low)))
+  #           marg_cihigh <- unlist(as.vector(select(dat_marg, ci_high)))
+  #           marg_mean <- unlist(as.vector(select(dat_marg, mean_est)))
+  #           names(marg_cilow) <- 
+  #             names(marg_cihigh) <- 
+  #             names(marg_mean) <- dat_marg$metric
+  #           
+  #           #### Get min/max valid epsilon, epsilon' combinations for each metric
+  #           epsilon_minmax <- get_minmax_epsilon(group = g,
+  #                                                data_input = dat_test, 
+  #                                                epsilon = seq(min(epsilon), max(epsilon), 0.01), 
+  #                                                epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01),
+  #                                                relative_eps = input$mdls_epsilon_rel)
+  #           
+  #           #### Mean bias corrections
+  #           mean_bclow <- get_epsilon_bc(group = g,
+  #                                        metric_marg = marg_mean, 
+  #                                        metric_vals = metrics_mean,
+  #                                        epsilon = epsilon_minmax$epsilon$min_vals, 
+  #                                        epsilon_prime = epsilon_minmax$epsilon_prime$max_vals, 
+  #                                        param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+  #           mean_bchigh <- get_epsilon_bc(group = g,
+  #                                         metric_marg = marg_mean, 
+  #                                         metric_vals = metrics_mean,
+  #                                         epsilon = epsilon_minmax$epsilon$max_vals, 
+  #                                         epsilon_prime = epsilon_minmax$epsilon_prime$min_vals, 
+  #                                         param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+  #           
+  #           #### Low CI endpoint bias correction
+  #           cilow_bc <- get_epsilon_bc(group = g,
+  #                                      metric_marg = marg_cilow, 
+  #                                      metric_vals = metrics_cilow,
+  #                                      epsilon = epsilon_minmax$epsilon$min_vals, 
+  #                                      epsilon_prime = epsilon_minmax$epsilon_prime$max_vals, 
+  #                                      param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+  #           #### High CI endpoint bias correction
+  #           cihigh_bc <- get_epsilon_bc(group = g,
+  #                                       metric_marg = marg_cihigh, 
+  #                                       metric_vals = metrics_cihigh,
+  #                                       epsilon = epsilon_minmax$epsilon$max_vals, 
+  #                                       epsilon_prime = epsilon_minmax$epsilon_prime$min_vals, 
+  #                                       param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+  #           #### Combine results in dataframe
+  #           gp_df <- data.frame(
+  #             metric = dat_bs$metric,
+  #             mean_est = dat_bs$mean_est
+  #           )
+  #           ##### Trim all at 0 and 1
+  #           gp_df$bc_low <- trunc_01(cilow_bc[gp_df$metric])
+  #           gp_df$bc_high <- trunc_01(cihigh_bc[gp_df$metric])
+  #           gp_df$mean_low <- trunc_01(mean_bclow[gp_df$metric])
+  #           gp_df$mean_high <- trunc_01(mean_bchigh[gp_df$metric])
+  #           
+  #           return(gp_df)
+  #         })
+  #         names(gp_res) <- unique(equity_metrics$G)
+  #         gp_res %>% bind_rows(.id = "G")
+  #       })
+  #       names(mdls_bc) <- mdls_bs$methods
+  #       full_bc <- mdls_bc %>% 
+  #         bind_rows(.id = "Method") %>% 
+  #         bind_rows(mutate(overall_metrics, bc_low = NA_real_, bc_high = NA_real_))
+  #       
+  #       return(list(tables = full_bc, is_probs = T))
+  #     } else { return(list(tables = NULL, is_probs = T)) }
+  #   } else { return(list(tables = mdls_bs$metrics, is_probs = F)) }
+  # })
   
   # Get equity and performance plots
   mdlsgps_acc_per_plt <- reactive({
@@ -1018,24 +1106,40 @@ server <- function(input, output, session) {
             marg_mean <- unlist(as.vector(select(dat_marg, mean_est)))
             names(marg_cilow) <- names(marg_cihigh) <- names(marg_mean) <- dat_marg$metric
             
-            dat_gp <- select(dat_test, !!sym(g), Y, Yhat) %>%
-              mutate(G_prob = !!sym(g)) %>% select(-!!sym(g))
-            
             #### Get min/max valid epsilon, epsilon' combinations for each metric
-            epsilon_minmax <- get_minmax_epsilon(data_gp=dat_gp, epsilon = seq(min(epsilon), max(epsilon), 0.01), epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01))
+            epsilon_minmax <- get_minmax_epsilon(group = g,
+                                                 data_gp = dat_gp, 
+                                                 epsilon = seq(min(epsilon), max(epsilon), 0.01), 
+                                                 epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01))
             
             #### Mean bias corrections
-            mean_bclow <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_mean, metric_vals = metrics_mean,
-                                         epsilon = epsilon_minmax$epsilon$min_vals, epsilon_prime=epsilon_minmax$epsilon_prime$max_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
-            mean_bchigh <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_mean, metric_vals = metrics_mean,
-                                          epsilon = epsilon_minmax$epsilon$max_vals, epsilon_prime=epsilon_minmax$epsilon_prime$min_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            mean_bclow <- get_epsilon_bc(group = g,
+                                         metric_marg = marg_mean, 
+                                         metric_vals = metrics_mean,
+                                         epsilon = epsilon_minmax$epsilon$min_vals, 
+                                         epsilon_prime=epsilon_minmax$epsilon_prime$max_vals, 
+                                         param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            mean_bchigh <- get_epsilon_bc(group = g,
+                                          metric_marg = marg_mean, 
+                                          metric_vals = metrics_mean,
+                                          epsilon = epsilon_minmax$epsilon$max_vals, 
+                                          epsilon_prime=epsilon_minmax$epsilon_prime$min_vals, 
+                                          param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             
             #### Low CI endpoint bias correction
-            cilow_bc <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_cilow, metric_vals = metrics_cilow,
-                                       epsilon = epsilon_minmax$epsilon$min_vals, epsilon_prime=epsilon_minmax$epsilon_prime$max_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            cilow_bc <- get_epsilon_bc(group = g,
+                                       metric_marg = marg_cilow, 
+                                       metric_vals = metrics_cilow,
+                                       epsilon = epsilon_minmax$epsilon$min_vals, 
+                                       epsilon_prime=epsilon_minmax$epsilon_prime$max_vals, 
+                                       param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             #### High CI endpoint bias correction
-            cihigh_bc <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_cihigh, metric_vals = metrics_cihigh,
-                                        epsilon=epsilon_minmax$epsilon$max_vals, epsilon_prime=epsilon_minmax$epsilon_prime$min_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            cihigh_bc <- get_epsilon_bc(group = g,
+                                        metric_marg = marg_cihigh, 
+                                        metric_vals = metrics_cihigh,
+                                        epsilon=epsilon_minmax$epsilon$max_vals, 
+                                        epsilon_prime=epsilon_minmax$epsilon_prime$min_vals, 
+                                        param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             #### Combine results in dataframe
             gp_df <- data.frame(
               metric = dat_bs$metric,

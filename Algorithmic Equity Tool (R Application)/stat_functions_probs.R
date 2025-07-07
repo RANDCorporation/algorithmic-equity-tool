@@ -112,113 +112,169 @@ get_param3 <- function(G_prob, Y, Yhat) {
 ### epsilon: list with components 'max_vals' (vector of max valid epsilon values), 'min_vals' (min valid values), both named by metric
 ### epsilon_prime: same as above for epsilon'
 #######################################################################################################################
-get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime, relative_eps = TRUE) {
-  # Calculate constraints to remove impossible combinations of epsilon, epsilon'
-  expec_Y1Yhat1 <- mean(data_gp$G_prob * data_gp$Y * data_gp$Yhat) / mean(data_gp$Y * data_gp$Yhat)
-  expec_Y1Yhat0 <- mean(data_gp$G_prob * data_gp$Y * (1 - data_gp$Yhat)) / mean(data_gp$Y * (1 - data_gp$Yhat))
-  expec_Y0Yhat1 <- mean(data_gp$G_prob * (1 - data_gp$Y) * data_gp$Yhat) / mean((1 - data_gp$Y) * data_gp$Yhat)
-  expec_Y0Yhat0 <- mean(data_gp$G_prob * (1 - data_gp$Y) * (1 - data_gp$Yhat)) / mean((1 - data_gp$Y) * (1 - data_gp$Yhat))
-  expec_YeqYhat <- mean(data_gp$G_prob * as.numeric(data_gp$Y==data_gp$Yhat))/mean(as.numeric(data_gp$Y == data_gp$Yhat))
-  expec_YneqYhat <- mean(data_gp$G_prob * as.numeric(data_gp$Y != data_gp$Yhat)) / mean(as.numeric(data_gp$Y != data_gp$Yhat))
-  expec_Yhat1 <- mean(data_gp$G_prob * data_gp$Yhat) / mean(data_gp$Yhat)
-  expec_Yhat0 <- mean(data_gp$G_prob * (1 - data_gp$Yhat)) / mean(1 - data_gp$Yhat)
-  expec_vec_names <- c("expec_Y1Yhat1", 
-                       "expec_Y1Yhat0", 
-                       "expec_Y0Yhat1", 
-                       "expec_Y0Yhat0", 
-                       "expec_YeqYhat", 
-                       "expec_YneqYhat", 
-                       "expec_Yhat1", 
-                       "expec_Yhat0")
-  expec_vec <- sapply(expec_vec_names, 
-                      function(x){ 
-                        get(x) 
+get_minmax_epsilon <- function(groups,
+                               data_input,
+                               epsilon, 
+                               epsilon_prime, 
+                               compute_relative) {
+  ## set epsilon for each group
+  epsilon_g = 
+    epsilon_gp = 
+    epsilon_seq = 
+    epsilon_prime_seq = vector('list', length(groups))
+  names(epsilon_g) = 
+    names(epsilon_gp) = 
+    names(epsilon_seq) = 
+    names(epsilon_prime_seq) = groups
+  for(group in groups){
+    epsilon_g[[group]] = epsilon
+    epsilon_gp[[group]] = epsilon_prime
+    
+    ## Multiple epsilon by mean if using relative bias
+    if(compute_relative){
+      epsilon_g[[group]] = epsilon_g[[group]] * mean(data_input %>% pull(!!sym(group)))
+      epsilon_gp[[group]] = epsilon_gp[[group]] * mean(data_input %>% pull(!!sym(group)))
+    }
+  }
+  
+  ## constrain biggest group to be the same size as sum of all other groups (ensures feasibility of total predicted probabilities)
+  if(compute_relative){
+    which_max_group = names(which.max(colMeans(data_input[, groups])))
+    other_group_prop = 1 - colMeans(data_input[, which_max_group, drop = FALSE])
+    epsilon_g[[which_max_group]] = epsilon_g[[which_max_group]] * (other_group_prop / (1 - other_group_prop))
+    epsilon_gp[[which_max_group]] = epsilon_gp[[which_max_group]] * (other_group_prop / (1 - other_group_prop))
+  }
+  
+  ## make sequence
+  for(group in groups){
+    epsilon_seq[[group]] = seq(min(epsilon_g[[group]]), 
+                               max(epsilon_g[[group]]), 
+                               (max(epsilon_g[[group]]) - min(epsilon_g[[group]])) / 10) 
+    epsilon_prime_seq[[group]] = seq(min(epsilon_gp[[group]]), 
+                                     max(epsilon_gp[[group]]), 
+                                     (max(epsilon_gp[[group]]) - min(epsilon_gp[[group]])) / 10) 
+  }
+  
+  ## create boundaries for additional limits
+  epsilon_ret_min = 
+    epsilon_ret_max = 
+    epsilonp_ret_min = 
+    epsilonp_ret_max = vector('list', length(groups))
+  names(epsilon_ret_min) = 
+    names(epsilonp_ret_min) =
+    names(epsilon_ret_max) = 
+    names(epsilonp_ret_max) = groups
+  for(group in groups){
+    data_gp = data_input %>%
+      select(!!sym(group), Y, Yhat) %>%
+      mutate(G_prob = !!sym(group)) %>% 
+      select(-!!sym(group))
+    # Calculate constraints to remove impossible combinations of epsilon, epsilon'
+    expec_Y1Yhat1 <- mean(data_gp$G_prob * data_gp$Y * data_gp$Yhat) / mean(data_gp$Y * data_gp$Yhat)
+    expec_Y1Yhat0 <- mean(data_gp$G_prob * data_gp$Y * (1 - data_gp$Yhat)) / mean(data_gp$Y * (1 - data_gp$Yhat))
+    expec_Y0Yhat1 <- mean(data_gp$G_prob * (1 - data_gp$Y) * data_gp$Yhat) / mean((1 - data_gp$Y) * data_gp$Yhat)
+    expec_Y0Yhat0 <- mean(data_gp$G_prob * (1 - data_gp$Y) * (1 - data_gp$Yhat)) / mean((1 - data_gp$Y) * (1 - data_gp$Yhat))
+    expec_YeqYhat <- mean(data_gp$G_prob * as.numeric(data_gp$Y == data_gp$Yhat)) / mean(as.numeric(data_gp$Y == data_gp$Yhat))
+    expec_YneqYhat <- mean(data_gp$G_prob * as.numeric(data_gp$Y != data_gp$Yhat)) / mean(as.numeric(data_gp$Y != data_gp$Yhat))
+    expec_Yhat1 <- mean(data_gp$G_prob * data_gp$Yhat) / mean(data_gp$Yhat)
+    expec_Yhat0 <- mean(data_gp$G_prob * (1 - data_gp$Yhat)) / mean(1 - data_gp$Yhat)
+    expec_vec_names <- c("expec_Y1Yhat1", 
+                         "expec_Y1Yhat0", 
+                         "expec_Y0Yhat1", 
+                         "expec_Y0Yhat0", 
+                         "expec_YeqYhat", 
+                         "expec_YneqYhat", 
+                         "expec_Yhat1", 
+                         "expec_Yhat0")
+    expec_vec <- sapply(expec_vec_names, 
+                        function(x){ 
+                          get(x) 
                         }, 
-                      USE.NAMES = T)
-  ## Set any NaN expectations to 0
-  expec_vec <- sapply(expec_vec, 
-                      function(val){
-                        if(is.na(val)){ 
-                          val <- 0 
+                        USE.NAMES = T)
+    ## Set any NaN expectations to 0
+    expec_vec <- sapply(expec_vec, 
+                        function(val){
+                          if(is.na(val)){ 
+                            val <- 0 
                           } else{ 
                             val 
-                            }
+                          }
                         })
-  epsilon_ret <- list(min_vals = vector(), max_vals = vector())
-  epsilonp_ret <- list(min_vals = vector(), max_vals = vector())
-  
-  ## Multiple epsilon by mean if using relative bias
-  if(relative_eps){
-    epsilon = epsilon * mean(data_gp$G_prob)
-    epsilon_prime = epsilon_prime * mean(data_gp$G_prob)
+
+    # TPR
+    epsilon_ret_max[[group]]['tpr'] <- max(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y1Yhat1'] - 1 & 
+                                                       epsilon_seq[[group]] <= expec_vec['expec_Y1Yhat1'])])
+    epsilonp_ret_max[[group]]['tpr'] <- max(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y1Yhat0'] - 1 & 
+                                                              epsilon_prime_seq[[group]] <= expec_vec['expec_Y1Yhat0'])])
+    
+    epsilon_ret_min[[group]]['tpr'] <- min(epsilon_seq[[group]][which(epsilon_seq[[group]]>=expec_vec['expec_Y1Yhat1'] - 1 & 
+                                                       epsilon_seq[[group]] <= expec_vec['expec_Y1Yhat1'])])
+    epsilonp_ret_min[[group]]['tpr'] <- min(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y1Yhat0'] - 1 &
+                                                              epsilon_prime_seq[[group]] <= expec_vec['expec_Y1Yhat0'])])
+    
+    # TNR
+    epsilon_ret_max[[group]]['tnr'] <- max(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y0Yhat0'] - 1 &
+                                                       epsilon_seq[[group]] <= expec_vec['expec_Y0Yhat0'])])
+    epsilonp_ret_max[[group]]['tnr'] <- max(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y0Yhat1'] - 1 & 
+                                                              epsilon_prime_seq[[group]] <= expec_vec['expec_Y0Yhat1'])])
+    
+    epsilon_ret_min[[group]]['tnr'] <- min(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y0Yhat0'] - 1 & 
+                                                       epsilon_seq[[group]] <= expec_vec['expec_Y0Yhat0'])])
+    epsilonp_ret_min[[group]]['tnr'] <- min(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y0Yhat1'] - 1 &
+                                                              epsilon_prime_seq[[group]] <= expec_vec['expec_Y0Yhat1'])])
+    
+    # PPV
+    epsilon_ret_max[[group]]['ppv'] <- max(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y1Yhat1'] - 1 &
+                                                       epsilon_seq[[group]] <= expec_vec['expec_Y1Yhat1'])])
+    epsilonp_ret_max[[group]]['ppv'] <- max(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y0Yhat1'] - 1 &
+                                                              epsilon_prime_seq[[group]] <= expec_vec['expec_Y0Yhat1'])])
+    
+    epsilon_ret_min[[group]]['ppv'] <- min(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y1Yhat1'] - 1 &
+                                                       epsilon_seq[[group]] <= expec_vec['expec_Y1Yhat1'])])
+    epsilonp_ret_min[[group]]['ppv'] <- min(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y0Yhat1'] - 1 &
+                                                              epsilon_prime_seq[[group]] <= expec_vec['expec_Y0Yhat1'])])
+    
+    # NPV
+    epsilon_ret_max[[group]]['npv'] <- max(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y0Yhat0'] - 1 &
+                                                       epsilon_seq[[group]] <= expec_vec['expec_Y0Yhat0'])])
+    epsilonp_ret_max[[group]]['npv'] <- max(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y1Yhat0'] - 1 &
+                                                              epsilon_prime_seq[[group]] <= expec_vec['expec_Y1Yhat0'])])
+    
+    epsilon_ret_min[[group]]['npv'] <- min(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y0Yhat0'] - 1 &
+                                                       epsilon_seq[[group]] <= expec_vec['expec_Y0Yhat0'])])
+    epsilonp_ret_min[[group]]['npv'] <- min(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y1Yhat0'] - 1 &
+                                                              epsilon_prime_seq[[group]] <= expec_vec['expec_Y1Yhat0'])])
+    
+    # Accuracy
+    epsilon_ret_max[[group]]['accuracy'] <- max(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_YeqYhat'] - 1 &
+                                                            epsilon_seq[[group]] <= expec_vec['expec_YeqYhat'])])
+    epsilonp_ret_max[[group]]['accuracy'] <- max(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_YneqYhat'] - 1 &
+                                                                   epsilon_prime_seq[[group]] <= expec_vec['expec_YneqYhat'])])
+    
+    epsilon_ret_min[[group]]['accuracy'] <- min(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_YeqYhat'] - 1 &
+                                                            epsilon_seq[[group]] <= expec_vec['expec_YeqYhat'])])
+    epsilonp_ret_min[[group]]['accuracy'] <- min(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_YneqYhat'] - 1 &
+                                                                   epsilon_prime_seq[[group]] <= expec_vec['expec_YneqYhat'])])
+    
+    # Selection rate
+    epsilon_ret_max[[group]]['selrate'] <- max(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Yhat1'] - 1 &
+                                                           epsilon_seq[[group]] <= expec_vec['expec_Yhat1'])])
+    epsilonp_ret_max[[group]]['selrate'] <- max(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Yhat0'] - 1 &
+                                                                  epsilon_prime_seq[[group]] <= expec_vec['expec_Yhat0'])])
+    
+    epsilon_ret_min[[group]]['selrate'] <- min(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Yhat1'] - 1 &
+                                                           epsilon_seq[[group]] <= expec_vec['expec_Yhat1'])])
+    epsilonp_ret_min[[group]]['selrate'] <- min(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Yhat0'] - 1 &
+                                                                  epsilon_prime_seq[[group]] <= expec_vec['expec_Yhat0'])])
+    
   }
-  # TPR
-  epsilon_ret$max_vals['tpr'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat1'] - 1 & 
-                                                     epsilon <= expec_vec['expec_Y1Yhat1'])])
-  epsilonp_ret$max_vals['tpr'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat0'] - 1 & 
-                                                            epsilon_prime <= expec_vec['expec_Y1Yhat0'])])
   
-  epsilon_ret$min_vals['tpr'] <- min(epsilon[which(epsilon>=expec_vec['expec_Y1Yhat1'] - 1 & 
-                                                     epsilon <= expec_vec['expec_Y1Yhat1'])])
-  epsilonp_ret$min_vals['tpr'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat0'] - 1 &
-                                                            epsilon_prime <= expec_vec['expec_Y1Yhat0'])])
+  out = list('epsilon' = list('min_vals' = epsilon_ret_min,
+                              'max_vals' = epsilon_ret_max),
+             'epsilon_prime' = list('min_vals' = epsilonp_ret_min,
+                                    'max_vals' = epsilonp_ret_max))
   
-  # TNR
-  epsilon_ret$max_vals['tnr'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat0'] - 1 &
-                                                     epsilon <= expec_vec['expec_Y0Yhat0'])])
-  epsilonp_ret$max_vals['tnr'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat1'] - 1 & 
-                                                            epsilon_prime <= expec_vec['expec_Y0Yhat1'])])
-  
-  epsilon_ret$min_vals['tnr'] <- min(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat0'] - 1 & 
-                                                     epsilon <= expec_vec['expec_Y0Yhat0'])])
-  epsilonp_ret$min_vals['tnr'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat1'] - 1 &
-                                                            epsilon_prime <= expec_vec['expec_Y0Yhat1'])])
-  
-  # PPV
-  epsilon_ret$max_vals['ppv'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat1'] - 1 &
-                                                     epsilon <= expec_vec['expec_Y1Yhat1'])])
-  epsilonp_ret$max_vals['ppv'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat1'] - 1 &
-                                                            epsilon_prime <= expec_vec['expec_Y0Yhat1'])])
-  
-  epsilon_ret$min_vals['ppv'] <- min(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat1'] - 1 &
-                                                     epsilon <= expec_vec['expec_Y1Yhat1'])])
-  epsilonp_ret$min_vals['ppv'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat1'] - 1 &
-                                                            epsilon_prime <= expec_vec['expec_Y0Yhat1'])])
-  
-  # NPV
-  epsilon_ret$max_vals['npv'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat0'] - 1 &
-                                                     epsilon <= expec_vec['expec_Y0Yhat0'])])
-  epsilonp_ret$max_vals['npv'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat0'] - 1 &
-                                                            epsilon_prime <= expec_vec['expec_Y1Yhat0'])])
-  
-  epsilon_ret$min_vals['npv'] <- min(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat0'] - 1 &
-                                                     epsilon <= expec_vec['expec_Y0Yhat0'])])
-  epsilonp_ret$min_vals['npv'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat0'] - 1 &
-                                                            epsilon_prime <= expec_vec['expec_Y1Yhat0'])])
-  
-  # Accuracy
-  epsilon_ret$max_vals['accuracy'] <- max(epsilon[which(epsilon >= expec_vec['expec_YeqYhat'] - 1 &
-                                                          epsilon <= expec_vec['expec_YeqYhat'])])
-  epsilonp_ret$max_vals['accuracy'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_YneqYhat'] - 1 &
-                                                                 epsilon_prime <= expec_vec['expec_YneqYhat'])])
-  
-  epsilon_ret$min_vals['accuracy'] <- min(epsilon[which(epsilon >= expec_vec['expec_YeqYhat'] - 1 &
-                                                          epsilon <= expec_vec['expec_YeqYhat'])])
-  epsilonp_ret$min_vals['accuracy'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_YneqYhat'] - 1 &
-                                                                 epsilon_prime <= expec_vec['expec_YneqYhat'])])
-  
-  # Selection rate
-  epsilon_ret$max_vals['selrate'] <- max(epsilon[which(epsilon >= expec_vec['expec_Yhat1'] - 1 &
-                                                         epsilon <= expec_vec['expec_Yhat1'])])
-  epsilonp_ret$max_vals['selrate'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Yhat0'] - 1 &
-                                                                epsilon_prime <= expec_vec['expec_Yhat0'])])
-  
-  epsilon_ret$min_vals['selrate'] <- min(epsilon[which(epsilon >= expec_vec['expec_Yhat1'] - 1 &
-                                                         epsilon <= expec_vec['expec_Yhat1'])])
-  epsilonp_ret$min_vals['selrate'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Yhat0'] - 1 &
-                                                                epsilon_prime <= expec_vec['expec_Yhat0'])])
-  
-  return(list(epsilon = epsilon_ret, epsilon_prime = epsilonp_ret))
+  return(out)
 }
 
 # Get bias corrections for a single group and metric-specific epsilon, epsilon' combinations ##########################
@@ -232,7 +288,7 @@ get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime, relative_eps = T
 ## Outputs: 
 ### Named vector of bias-corrected metrics
 #######################################################################################################################
-get_epsilon_bc <- function(data_gp, 
+get_epsilon_bc <- function(groups,
                            metric_marg, 
                            metric_vals, 
                            epsilon, 
@@ -241,39 +297,50 @@ get_epsilon_bc <- function(data_gp,
                            bias_only = FALSE) {
   
   # Verify all metrics are included in all inputs
-  metric_names <- c("tpr", "tnr", "ppv", "npv", "accuracy", "selrate")
-  if(!(all(metric_names %in% names(metric_marg)) & all(metric_names %in% names(metric_vals)) 
-       & all(metric_names %in% names(epsilon)) & all(metric_names %in% names(epsilon_prime)))){
+  metric_names <- c("tpr", 
+                    "tnr", 
+                    "ppv", 
+                    "npv", 
+                    "accuracy", 
+                    "selrate")
+  if(!(all(metric_names %in% names(metric_marg)) & all(metric_names %in% names(metric_vals[[1]])) 
+       & all(metric_names %in% names(epsilon[[1]])) & all(metric_names %in% names(epsilon_prime[[1]])))){
     stop("All metrics must have corresponding elements in 'metric_marg', 'metric_vals', 'epsilon', and 'epsilon_prime'.")
   }
   
-  # Calculate bias corrections and bias-corrected metrics
-  return_vec = bias_vec = vector(length = length(metric_vals))
-  names(return_vec) = names(bias_vec) = names(metric_vals)
-  ## TPR
-  bias_vec['tpr'] <- ((1 - metric_vals['tpr']) * metric_marg['tpr'] * epsilon['tpr'] - 
-                         metric_vals['tpr'] * (1 - metric_marg['tpr']) * epsilon_prime['tpr']) / param_3[1]
-  return_vec['tpr'] <- metric_vals['tpr'] + bias_vec['tpr']
-  ## TNR
-  bias_vec['tnr'] <- ((1 - metric_vals['tnr']) * metric_marg['tnr'] * epsilon['tnr'] - 
-                         metric_vals['tnr'] * (1 - metric_marg['tnr']) * epsilon_prime['tnr']) / param_3[2]
-  return_vec['tnr'] <- metric_vals['tnr'] + bias_vec['tnr']
-  ## PPV
-  bias_vec['ppv'] <- ((1 - metric_vals['ppv']) * metric_marg['ppv'] * epsilon['ppv'] - 
-                         metric_vals['ppv'] * (1 - metric_marg['ppv']) * epsilon_prime['ppv']) / param_3[3]
-  return_vec['ppv'] <- metric_vals['ppv'] + bias_vec['ppv']
-  ## NPV
-  bias_vec['npv'] <- ((1 - metric_vals['npv']) * metric_marg['npv'] * epsilon['npv'] - 
-                         metric_vals['npv'] * (1 - metric_marg['npv']) * epsilon_prime['npv']) / param_3[4]
-  return_vec['npv'] <- metric_vals['npv'] + bias_vec['npv']
-  ## Accuracy
-  bias_vec['accuracy'] <- ((1 - metric_vals['accuracy']) * metric_marg['accuracy'] * epsilon['accuracy'] - 
-                         metric_vals['accuracy'] * (1 - metric_marg['accuracy']) * epsilon_prime['accuracy']) / param_3[5]
-  return_vec['accuracy'] <- metric_vals['accuracy'] + bias_vec['accuracy']
-  ## Selection rate
-  bias_vec['selrate'] <- ((1 - metric_vals['selrate']) * metric_marg['selrate'] * epsilon['selrate'] - 
-                             metric_vals['selrate'] * (1 - metric_marg['selrate']) * epsilon_prime['selrate']) / param_3[5]
-  return_vec['selrate'] <- metric_vals['selrate'] + bias_vec['selrate']
+  return_vec = bias_vec = vector('list', length(groups))
+  names(return_vec) = names(bias_vec) = groups
+  for(group in groups){
+    # Calculate bias corrections and bias-corrected metrics
+    return_vec[[group]] = bias_vec[[group]] = vector(length = length(metric_vals[[group]]))
+    names(return_vec[[group]]) = names(bias_vec[[group]]) = names(metric_vals[[group]])
+    group_param3 = param_3 %>%
+      pull(!!sym(group))
+    ## TPR
+    bias_vec[[group]]['tpr'] <- ((1 - metric_vals[[group]]['tpr']) * metric_marg['tpr'] * epsilon[[group]]['tpr'] - 
+                          metric_vals[[group]]['tpr'] * (1 - metric_marg['tpr']) * epsilon_prime[[group]]['tpr']) / group_param3[1]
+    return_vec[[group]]['tpr'] <- metric_vals[[group]]['tpr'] + bias_vec[[group]]['tpr']
+    ## TNR
+    bias_vec[[group]]['tnr'] <- ((1 - metric_vals[[group]]['tnr']) * metric_marg['tnr'] * epsilon[[group]]['tnr'] - 
+                          metric_vals[[group]]['tnr'] * (1 - metric_marg['tnr']) * epsilon_prime[[group]]['tnr']) / group_param3[2]
+    return_vec[[group]]['tnr'] <- metric_vals[[group]]['tnr'] + bias_vec[[group]]['tnr']
+    ## PPV
+    bias_vec[[group]]['ppv'] <- ((1 - metric_vals[[group]]['ppv']) * metric_marg['ppv'] * epsilon[[group]]['ppv'] - 
+                          metric_vals[[group]]['ppv'] * (1 - metric_marg['ppv']) * epsilon_prime[[group]]['ppv']) / group_param3[3]
+    return_vec[[group]]['ppv'] <- metric_vals[[group]]['ppv'] + bias_vec[[group]]['ppv']
+    ## NPV
+    bias_vec[[group]]['npv'] <- ((1 - metric_vals[[group]]['npv']) * metric_marg['npv'] * epsilon[[group]]['npv'] - 
+                          metric_vals[[group]]['npv'] * (1 - metric_marg['npv']) * epsilon_prime[[group]]['npv']) / group_param3[4]
+    return_vec[[group]]['npv'] <- metric_vals[[group]]['npv'] + bias_vec[[group]]['npv']
+    ## Accuracy
+    bias_vec[[group]]['accuracy'] <- ((1 - metric_vals[[group]]['accuracy']) * metric_marg['accuracy'] * epsilon[[group]]['accuracy'] - 
+                               metric_vals[[group]]['accuracy'] * (1 - metric_marg['accuracy']) * epsilon_prime[[group]]['accuracy']) / group_param3[5]
+    return_vec[[group]]['accuracy'] <- metric_vals[[group]]['accuracy'] + bias_vec[[group]]['accuracy']
+    ## Selection rate
+    bias_vec[[group]]['selrate'] <- ((1 - metric_vals[[group]]['selrate']) * metric_marg['selrate'] * epsilon[[group]]['selrate'] - 
+                              metric_vals[[group]]['selrate'] * (1 - metric_marg['selrate']) * epsilon_prime[[group]]['selrate']) / group_param3[5]
+    return_vec[[group]]['selrate'] <- metric_vals[[group]]['selrate'] + bias_vec[[group]]['selrate']
+  }
   
   if(bias_only){
     return(bias_vec)
@@ -292,7 +359,9 @@ get_epsilon_bc <- function(data_gp,
 ## Outputs:
 ### tibble with metric values for each group and combined (Value) plus metric and G columns
 ######################################################################################
-get_metrics_by_race_vec <- function(data, group_mat, metrics){
+get_metrics_by_race_vec <- function(data, 
+                                    group_mat, 
+                                    metrics){
   metric_vec <- unlist(lapply(metrics, 
                               function(m){
                                 c(get(m)(g_prob = NULL,
@@ -305,7 +374,7 @@ get_metrics_by_race_vec <- function(data, group_mat, metrics){
                                         Yhat = data$Yhat))
                               }))
   metric_df <- cbind(expand_grid(metric = metrics, 
-                                 G = c("Overall", paste0("G_", 1:ncol(group_mat)))),
+                                 G = c("Overall", colnames(group_mat))),
                      Value = metric_vec)
   return(metric_df)
 }
@@ -346,25 +415,40 @@ get_equity_performance <- function(dfs, pro.methods, eq_metric, per_metric){
 ## Outputs: List with the following components
 ### equity, performance: equity/performance metric dfs
 ##########################################################################################
-get_eq_per_uncertainty <- function(dfs, pro.methods) {
+get_eq_per_uncertainty <- function(dfs, 
+                                   pro.methods,
+                                   epsilon,
+                                   epsilon_prime,
+                                   relative_eps,
+                                   param3_update) {
+  
   metrics_bs <- lapply(dfs, function(d) {
-    bootstrap_sample(d, 
-                     B = 500, 
-                     alpha = 0.05, 
-                     ci_types = "perc",
-                     metrics = c("accuracy", "selrate", "tnr", "tpr", "ppv", "npv"),
-                     parallel_opt = parallel_opt_set)
+    group_cols <- grep('G', colnames(d), value = TRUE)
+    boot_ind = lapply(1:500,
+                      function(ind, n){
+                        sample(1:n, n, replace = TRUE)
+                      },
+                      n = nrow(d))
+    boot_test = lapply(boot_ind,
+                       bootstrap_only,
+                       data = d, 
+                       group_cols = group_cols, 
+                       metrics = paste0(c("accuracy", "selrate", "tnr", "tpr", "ppv", "npv"), "_prob"),
+                       epsilon = epsilon,
+                       epsilon_prime = epsilon_prime,
+                       relative_eps = relative_eps,
+                       param3 = param3_update)
+    
+    metrics_bs = bind_rows(boot_test) %>%
+      group_by(G,
+               metric) %>%
+      mutate(rep = 1:n()) %>%
+      ungroup
   })
   ## Bind bootstrap results from all dfs together
   return_metrics <- metrics_bs %>% 
-    bind_rows(.id = "Method") %>% 
-    select(Method, 
-           metric, 
-           G, 
-           difference,
-           mean_est,
-           ci_low,
-           ci_high)
+    bind_rows(.id = "Method")
+ 
   return(return_metrics)
 }
 
