@@ -7,9 +7,10 @@ library(readr)
 source("~/Documents/Current_Projects/RWJF_Imputed_Fairness/New Code/algorithmic-equity-tool/Algorithmic Equity Tool (R Application)/stat_functions_probs.R")
 source("~/Documents/Current_Projects/RWJF_Imputed_Fairness/New Code/algorithmic-equity-tool/Algorithmic Equity Tool (R Application)/bootstrap_sample_functions.R")
 
-shiny_test_noG_noP <- read_csv("~/Documents/Current_Projects/RWJF_Imputed_Fairness/New Code/shiny_test_noG_noP.csv")
+## load in data here
+test_data <- read_csv("")
 
-
+## Function to compute metrics
 compute_difference_metrics = function(input_data,
                                       epsilon = c(-0.05, 0.05),
                                       epsilon_prime = c(-0.05, 0.05),
@@ -47,9 +48,7 @@ compute_difference_metrics = function(input_data,
   
   return(return_metrics)
 }
-
-diff_metrics = compute_difference_metrics(shiny_test_noG_noP)
-
+## Function to generate plot
 create_difference_plot = function(difference_metric,
                                   plot_difference_from_group,
                                   plot_metric){
@@ -112,11 +111,16 @@ create_difference_plot = function(difference_metric,
 }
 
 
+## Example
+## Compute metrics
+diff_metrics = compute_difference_metrics(test_data)
+
+## Create plots
 create_difference_plot(diff_metrics,
                        'G_BISGaian',
                        'tpr')
 create_difference_plot(diff_metrics,
-                       'G_BISGaian',
+                       'G_BISGwhite',
                        'fnr')
 
 
