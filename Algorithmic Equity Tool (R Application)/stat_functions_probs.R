@@ -223,6 +223,28 @@ get_minmax_epsilon <- function(groups,
     epsilonp_ret_min[[group]]['tnr'] <- min(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y0Yhat1'] - 1 &
                                                               epsilon_prime_seq[[group]] <= expec_vec['expec_Y0Yhat1'])])
     
+    # FNR
+    epsilon_ret_max[[group]]['fnr'] <- max(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y1Yhat0'] - 1 & 
+                                                                        epsilon_seq[[group]] <= expec_vec['expec_Y1Yhat0'])])
+    epsilonp_ret_max[[group]]['fnr'] <- max(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y1Yhat1'] - 1 & 
+                                                                               epsilon_prime_seq[[group]] <= expec_vec['expec_Y1Yhat1'])])
+    
+    epsilon_ret_min[[group]]['fnr'] <- min(epsilon_seq[[group]][which(epsilon_seq[[group]]>=expec_vec['expec_Y1Yhat0'] - 1 & 
+                                                                        epsilon_seq[[group]] <= expec_vec['expec_Y1Yhat0'])])
+    epsilonp_ret_min[[group]]['fnr'] <- min(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y1Yhat1'] - 1 &
+                                                                               epsilon_prime_seq[[group]] <= expec_vec['expec_Y1Yhat1'])])
+    
+    # FPR
+    epsilon_ret_max[[group]]['fpr'] <- max(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y0Yhat1'] - 1 &
+                                                                        epsilon_seq[[group]] <= expec_vec['expec_Y0Yhat1'])])
+    epsilonp_ret_max[[group]]['fpr'] <- max(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y0Yhat0'] - 1 & 
+                                                                               epsilon_prime_seq[[group]] <= expec_vec['expec_Y0Yhat0'])])
+    
+    epsilon_ret_min[[group]]['fpr'] <- min(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y0Yhat1'] - 1 & 
+                                                                        epsilon_seq[[group]] <= expec_vec['expec_Y0Yhat1'])])
+    epsilonp_ret_min[[group]]['fpr'] <- min(epsilon_prime_seq[[group]][which(epsilon_prime_seq[[group]] >= expec_vec['expec_Y0Yhat0'] - 1 &
+                                                                               epsilon_prime_seq[[group]] <= expec_vec['expec_Y0Yhat0'])])
+    
     # PPV
     epsilon_ret_max[[group]]['ppv'] <- max(epsilon_seq[[group]][which(epsilon_seq[[group]] >= expec_vec['expec_Y1Yhat1'] - 1 &
                                                        epsilon_seq[[group]] <= expec_vec['expec_Y1Yhat1'])])
@@ -298,7 +320,9 @@ get_epsilon_bc <- function(groups,
   
   # Verify all metrics are included in all inputs
   metric_names <- c("tpr", 
-                    "tnr", 
+                    "tnr",
+                    "fnr",
+                    "fpr",
                     "ppv", 
                     "npv", 
                     "accuracy", 
@@ -324,6 +348,14 @@ get_epsilon_bc <- function(groups,
     bias_vec[[group]]['tnr'] <- ((1 - metric_vals[[group]]['tnr']) * metric_marg['tnr'] * epsilon[[group]]['tnr'] - 
                           metric_vals[[group]]['tnr'] * (1 - metric_marg['tnr']) * epsilon_prime[[group]]['tnr']) / group_param3[2]
     return_vec[[group]]['tnr'] <- metric_vals[[group]]['tnr'] + bias_vec[[group]]['tnr']
+    ## FNR
+    bias_vec[[group]]['fnr'] <- ((1 - metric_vals[[group]]['fnr']) * metric_marg['fnr'] * epsilon[[group]]['fnr'] - 
+                                   metric_vals[[group]]['fnr'] * (1 - metric_marg['fnr']) * epsilon_prime[[group]]['fnr']) / group_param3[1]
+    return_vec[[group]]['fnr'] <- metric_vals[[group]]['fnr'] + bias_vec[[group]]['fnr']
+    ## FPR
+    bias_vec[[group]]['fpr'] <- ((1 - metric_vals[[group]]['fpr']) * metric_marg['fpr'] * epsilon[[group]]['fpr'] - 
+                                   metric_vals[[group]]['fpr'] * (1 - metric_marg['fpr']) * epsilon_prime[[group]]['fpr']) / group_param3[2]
+    return_vec[[group]]['fpr'] <- metric_vals[[group]]['fpr'] + bias_vec[[group]]['fpr']
     ## PPV
     bias_vec[[group]]['ppv'] <- ((1 - metric_vals[[group]]['ppv']) * metric_marg['ppv'] * epsilon[[group]]['ppv'] - 
                           metric_vals[[group]]['ppv'] * (1 - metric_marg['ppv']) * epsilon_prime[[group]]['ppv']) / group_param3[3]
@@ -433,7 +465,7 @@ get_eq_per_uncertainty <- function(dfs,
                        bootstrap_only,
                        data = d, 
                        group_cols = group_cols, 
-                       metrics = paste0(c("accuracy", "selrate", "tnr", "tpr", "ppv", "npv"), "_prob"),
+                       metrics = paste0(c("accuracy", "selrate", "tnr", "tpr", "fpr", "fnr", "ppv", "npv"), "_prob"),
                        epsilon = epsilon,
                        epsilon_prime = epsilon_prime,
                        relative_eps = relative_eps,
