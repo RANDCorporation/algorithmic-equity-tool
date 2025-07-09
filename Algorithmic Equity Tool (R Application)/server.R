@@ -30,8 +30,13 @@ method_colors <- c('Baseline' = "gray40", 'Equalized Error Rate PP' = "#0D0887FF
 model_shapes <- c(0,16,2,15,1)
 
 # Look-up lists for equity and performance metric function names and plot labels
-metric_funcs <- c("Selection Rate"="selrate_prob", "False Positive Rate"="fpr_prob", "False Negative Rate"="fnr_prob", "Accuracy"="accuracy_prob",
-                  "Positive Predictive Value"="ppv_prob", "Negative Predictive Value"="npv_prob", "True Positive Rate" = "tpr_prob",
+metric_funcs <- c("Selection Rate"="selrate_prob", 
+                  "False Positive Rate"="fpr_prob", 
+                  "False Negative Rate"="fnr_prob", 
+                  "Accuracy"="accuracy_prob",
+                  "Positive Predictive Value"="ppv_prob", 
+                  "Negative Predictive Value"="npv_prob", 
+                  "True Positive Rate" = "tpr_prob",
                   "True Negative Rate" = "tnr_prob")
 
 metric_labs <- c("Selection Rate" = "Proportion of Positive Predictions", 
@@ -723,13 +728,13 @@ server <- function(input, output, session) {
   output$mdls_t_param3 <- DT::renderDT({
     eq_metric <- input$mdlsgps_equity
     dat <- round(mdl_param3_data$data, 2)
-    if(eq_metric == 'True Positive Rate'){
+    if(eq_metric %in% c('True Positive Rate', 'False Negative Rate')){
       DT::datatable(t(dat)[, 1, drop = FALSE], 
                     editable = TRUE, 
                     options = list(dom = 't', ordering = F),
                     colnames = c("Y=1"), 
                     escape = F)
-    } else if(eq_metric == 'True Negative Rate'){
+    } else if(eq_metric %in% c('True Negative Rate', 'False Positive Rate')){
       DT::datatable(t(dat)[, 2, drop = FALSE], 
                     editable = TRUE, 
                     options = list(dom = 't', ordering = F),
@@ -747,19 +752,13 @@ server <- function(input, output, session) {
                     options = list(dom = 't', ordering = F),
                     colnames = c("Y&#770=0"), 
                     escape = F)
-    } else if(eq_metric == 'Accuracy'){
+    } else if(eq_metric %in% c('Accuracy', 'Selection Rate')){
       DT::datatable(t(dat)[, 5, drop = FALSE], 
                     editable = TRUE, 
                     options = list(dom = 't', ordering = F),
                     colnames = c("All"), 
                     escape = F)
-    } else if(eq_metric == 'Selection Rate'){
-      DT::datatable(t(dat)[, 5, drop = FALSE], 
-                    editable = TRUE, 
-                    options = list(dom = 't', ordering = F),
-                    colnames = c("All"), 
-                    escape = F)
-    }
+    } 
   })
   # Capture edits to param_3 table
   observeEvent(input$mdls_t_param3_cell_edit, {
@@ -769,17 +768,15 @@ server <- function(input, output, session) {
     info = input$mdls_t_param3_cell_edit
     ## note the swapped rows and columns because we transpose for viewing
     j = as.numeric(info$row)
-    if(eq_metric == 'True Positive Rate'){
+    if(eq_metric %in% c('True Positive Rate', 'False Negative Rate')){
       i = 1
-    } else if(eq_metric == 'True Negative Rate'){
+    } else if(eq_metric %in% c('True Negative Rate', 'False Positive Rate')){
       i = 2
     } else if(eq_metric == 'Positive Predictive Value'){
       i = 3
     } else if(eq_metric == 'Negative Predictive Value'){
       i = 4
-    } else if(eq_metric == 'Accuracy'){
-      i = 5
-    } else if(eq_metric == 'Selection Rate'){
+    } else if(eq_metric %in% c('Accuracy', 'Selection Rate')){
       i = 5
     }
     k = as.numeric(info$value)
@@ -797,19 +794,17 @@ server <- function(input, output, session) {
     # Normalize values by row
     #dat <- round(dat / rowSums(dat), 2)
     #mdl_param3_data$data <- dat
-    if(eq_metric == 'True Positive Rate'){
+    if(eq_metric %in% c('True Positive Rate', 'False Negative Rate')){
       i = 1
-    } else if(eq_metric == 'True Negative Rate'){
+    } else if(eq_metric %in% c('True Negative Rate', 'False Positive Rate')){
       i = 2
     } else if(eq_metric == 'Positive Predictive Value'){
       i = 3
     } else if(eq_metric == 'Negative Predictive Value'){
       i = 4
-    } else if(eq_metric == 'Accuracy'){
+    } else if(eq_metric %in% c('Accuracy', 'Selection Rate')){
       i = 5
-    } else if(eq_metric == 'Selection Rate'){
-      i = 5
-    }
+    } 
     ## capture changes
     values_unchanged = which(dat[i, , drop = FALSE] == prior_data[i, , drop = FALSE])
     # calculate total change

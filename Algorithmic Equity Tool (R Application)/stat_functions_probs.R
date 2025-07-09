@@ -174,6 +174,28 @@ get_minmax_epsilon <- function(data_gp, epsilon, epsilon_prime, relative_eps = T
   epsilonp_ret$min_vals['tnr'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat1'] - 1 &
                                                             epsilon_prime <= expec_vec['expec_Y0Yhat1'])])
   
+  # FNR
+  epsilon_ret$max_vals['fnr'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat0'] - 1 & 
+                                                                      epsilon <= expec_vec['expec_Y1Yhat0'])])
+  epsilonp_ret$max_vals['fnr'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat1'] - 1 & 
+                                                                             epsilon_prime <= expec_vec['expec_Y1Yhat1'])])
+  
+  epsilon_ret$min_vals['fnr'] <- min(epsilon[which(epsilon>=expec_vec['expec_Y1Yhat0'] - 1 & 
+                                                                      epsilon <= expec_vec['expec_Y1Yhat0'])])
+  epsilonp_ret$min_vals['fnr'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y1Yhat1'] - 1 &
+                                                                             epsilon_prime <= expec_vec['expec_Y1Yhat1'])])
+  
+  # FPR
+  epsilon_ret$max_vals['fpr'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat1'] - 1 &
+                                                                      epsilon <= expec_vec['expec_Y0Yhat1'])])
+  epsilonp_ret$max_vals['fpr'] <- max(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat0'] - 1 & 
+                                                                             epsilon_prime <= expec_vec['expec_Y0Yhat0'])])
+  
+  epsilon_ret$min_vals['fpr'] <- min(epsilon[which(epsilon >= expec_vec['expec_Y0Yhat1'] - 1 & 
+                                                                      epsilon <= expec_vec['expec_Y0Yhat1'])])
+  epsilonp_ret$min_vals['fpr'] <- min(epsilon_prime[which(epsilon_prime >= expec_vec['expec_Y0Yhat0'] - 1 &
+                                                                             epsilon_prime <= expec_vec['expec_Y0Yhat0'])])
+  
   # PPV
   epsilon_ret$max_vals['ppv'] <- max(epsilon[which(epsilon >= expec_vec['expec_Y1Yhat1'] - 1 &
                                                      epsilon <= expec_vec['expec_Y1Yhat1'])])
@@ -241,7 +263,7 @@ get_epsilon_bc <- function(data_gp,
                            bias_only = FALSE) {
   
   # Verify all metrics are included in all inputs
-  metric_names <- c("tpr", "tnr", "ppv", "npv", "accuracy", "selrate")
+  metric_names <- c("tpr", "tnr", "fnr", "fpr", "ppv", "npv", "accuracy", "selrate")
   if(!(all(metric_names %in% names(metric_marg)) & all(metric_names %in% names(metric_vals)) 
        & all(metric_names %in% names(epsilon)) & all(metric_names %in% names(epsilon_prime)))){
     stop("All metrics must have corresponding elements in 'metric_marg', 'metric_vals', 'epsilon', and 'epsilon_prime'.")
@@ -258,6 +280,14 @@ get_epsilon_bc <- function(data_gp,
   bias_vec['tnr'] <- ((1 - metric_vals['tnr']) * metric_marg['tnr'] * epsilon['tnr'] - 
                          metric_vals['tnr'] * (1 - metric_marg['tnr']) * epsilon_prime['tnr']) / param_3[2]
   return_vec['tnr'] <- metric_vals['tnr'] + bias_vec['tnr']
+  ## FNR
+  bias_vec['fnr'] <- ((1 - metric_vals['fnr']) * metric_marg['fnr'] * epsilon['fnr'] - 
+                        metric_vals['fnr'] * (1 - metric_marg['fnr']) * epsilon_prime['fnr']) / param_3[1]
+  return_vec['fnr'] <- metric_vals['fnr'] + bias_vec['fnr']
+  ## FPR
+  bias_vec['fpr'] <- ((1 - metric_vals['fpr']) * metric_marg['fpr'] * epsilon['fpr'] - 
+                        metric_vals['fpr'] * (1 - metric_marg['fpr']) * epsilon_prime['fpr']) / param_3[2]
+  return_vec['fpr'] <- metric_vals['fpr'] + bias_vec['fpr']
   ## PPV
   bias_vec['ppv'] <- ((1 - metric_vals['ppv']) * metric_marg['ppv'] * epsilon['ppv'] - 
                          metric_vals['ppv'] * (1 - metric_marg['ppv']) * epsilon_prime['ppv']) / param_3[3]
@@ -352,7 +382,7 @@ get_eq_per_uncertainty <- function(dfs, pro.methods) {
                      B = 500, 
                      alpha = 0.05, 
                      ci_types = "perc",
-                     metrics = c("accuracy", "selrate", "tnr", "tpr", "ppv", "npv"),
+                     metrics = c("accuracy", "selrate", "tnr", "tpr", "fpr", "fnr", "ppv", "npv"),
                      parallel_opt = parallel_opt_set)
   })
   ## Bind bootstrap results from all dfs together
