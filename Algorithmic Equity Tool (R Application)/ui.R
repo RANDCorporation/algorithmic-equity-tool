@@ -202,21 +202,31 @@ ui <- navbarPage(
                    textOutput("pp_warn_Gprob"),
                    textOutput("pp_warn_nan"),
                    numericInput("pp_base_thresh", "Model's Original Threshold", value = 0.5, min = 0, max = 1, step=0.05),
-                   checkboxGroupInput("pp_processing", label = "Select Post-Processing Methods",
-                                      choices = c("Statistical Parity PP", "Equalized Odds PP", "Equalized Opp. PP", "Equalized Error Rate PP")),
-                   selectInput(inputId = "pp_equity", label = "Subgroup Performance Metrics",
+                   checkboxGroupInput("pp_processing", 
+                                      label = "Select Post-Processing Methods",
+                                      choices = c("Statistical Parity PP", 
+                                                  "Equalized Odds PP", 
+                                                  "Equalized Opp. PP", 
+                                                  "Equalized Error Rate PP")),
+                   selectInput(inputId = "pp_equity", 
+                               label = "Subgroup Performance Metrics",
                                choices = c("Accuracy", 
                                            "Selection Rate", 
-                                           "True Negative Rate",
+                                           "True Negative Rate", 
                                            "True Positive Rate", 
-                                           "Positive Predictive Value",
+                                           "False Positive Rate", 
+                                           "False Negative Rate", 
+                                           "Positive Predictive Value", 
                                            "Negative Predictive Value")),
-                   selectInput(inputId = "pp_performance", label = "Overall Performance Metrics",
+                   selectInput(inputId = "pp_performance", 
+                               label = "Overall Performance Metrics",
                                choices = c("Accuracy", 
                                            "Selection Rate", 
-                                           "True Negative Rate",
+                                           "True Negative Rate", 
                                            "True Positive Rate", 
-                                           "Positive Predictive Value",
+                                           "False Positive Rate", 
+                                           "False Negative Rate", 
+                                           "Positive Predictive Value", 
                                            "Negative Predictive Value")),
                    uiOutput("pp_gpprob_menus")
       ),
@@ -263,145 +273,145 @@ ui <- navbarPage(
       ),
     )
   ),
-  tabPanel(
-    "Correction: Pre-Processing",
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    tags$br(),
-    sidebarLayout(
-      sidebarPanel(style = "position: fixed; width: 30%;",
-                   tags$br(),
-                   setBackgroundColor(
-                     color = c( "#f2fafd")
-                   ),
-                   tags$style(".well {
-                    background-color:	#fcfcfc;
-                    border-width: 1px;
-                    border-color: #1475AD;
-                    height: 85vh; 
-                    overflow-y: auto;
-                    color: #000000;
-                   }"),
-                   tags$b("Pre-Processing Data"),
-                   tags$br(),
-                   tags$p("Use this tab to tranform data before feeding it into a model. The dataset must include covariates and a variable named 'G'."),
-                   tags$p("Upload a dataset and select a method using the dropdown. Pre-processing will be done on all of the data with original row positions preserved.
-                          This tab will display a comparison between the original and preprocessed data for each input variable.
-                          The goal of pre-processing is to equalize each variable's distribution across groups (G)."),
-                   tags$p("For descriptions of pre-processing methods, see the Descriptions tab. Hover over plots for more information."),
-                   tags$br(),
-                   tags$b("Before Uploading Data"),
-                   tags$ul(
-                     tags$li("Outcome variables must be named `Y` in order to not be preprocessed."),
-                     tags$li("The protected group variable must be a categorical variable named 'G'."),
-                     tags$li("Group probability columns are not supported.")
-                   ),
-                   tags$i("Note: Any variables named 'Yhat' or 'Prob' will be dropped."),
-                   tags$br(),
-                   tags$br(),
-                   tags$b("Upload Data"),
-                   fileInput("preprocess_data", label = NULL, accept = '.csv'),
-                   tags$b("Confirm Variable Types"),
-                   uiOutput("var_types"),
-                   htmlOutput("cat_err_message", style = "color:red"),
-                   tags$b("Select Pre-Process Method"),
-                   selectInput("preprocess", label = NULL, choices = c("Johndrow and Lum (2019)")),
-                   tags$b("Compare Original/Pre-Processed Variables"),
-                   uiOutput("var_stats"),
-      ),
-      mainPanel(
-        tags$head(tags$style("#preproc_plt{height:75vh !important;}")),
-        fluidRow(
-          column(12,
-                 shinycssloaders::withSpinner(plotlyOutput("preproc_plt", width = "100%"), type=7),
-          )
-        ),
-        tags$br(),
-        fluidRow(
-          column(2, uiOutput("show_preproc_plt_btn") ),
-          column(10, uiOutput("show_preproc_data_btwn") )
-        )
-      )
-    )
-  ),
-  tabPanel(
-    "Descriptions",
-    withMathJax(),
-    titlePanel("Definitions and descriptions"),
-    tags$br(),
-    p("This tab contains definitions of terms referred to in the previous tabs.
-       \\(Y\\) is the true outcome, \\(\\hat{Y}\\) is the predicted outcome, and \\(G\\) is the protected group.
-       For more detail on the methods implemented in this tool, please refer to the reports linked on the GitHub repository."),
-    h3("Performance Metrics"),
-    p("Overall performance metrics are calculated on the whole data set. Subgroup performance metrics are computed for each subpopulation defined by a level of the protected group \\(G\\)."),
-    h4("Accuracy"),
-    p("The proportion of correctly predicted outcomes."),
-    uiOutput("acc_form"),
-    h4("True Positive Rate"),
-    p("Among the population for whom \\(Y = 1\\), the proportion of correctly predicted positive outcomes. Equivalent to 1 minus the False Negative Rate."),
-    uiOutput("tp_rate"),
-    h4("True Negative Rate"),
-    p("Among the population for whom \\(Y = 0\\), the proportion of correctly predicted negative outcomes. Equivalent to 1 minus the False Positive Rate."),
-    uiOutput("tn_rate"),
-    h4("Selection Rate"),
-    p("The proportion of positive predicted outcomes."),
-    uiOutput("selrate_form"),
-    h4("Positive Predicted Value (PPV)"),
-    p("Among the population predicted to be positive, \\(\\hat{Y} = 1\\), the proportion that is truly positive."),
-    uiOutput("ppv_form"),
-    h4("Negative Predictive Value (NPV)"),
-    p("Among the population predicted to be negative, \\(\\hat{Y} = 0\\), the proportion that is truly negative."),
-    uiOutput("npv_form"),
-    
-    h3("Post-Processing Methods"),
-    p("The post processing methods find group-specific", tags$strong("thresholds"), "that minimize performance differences while optimizing overall performance."),
-    p(tags$strong("Thresholds determine when model predicted probabilities are classified as positive."), "Predicted probabilities above the threshold equal a positive prediction."),
-    p("For example, the plot below shows hypothetical distributions of predicted probabilities with group-specific thresholds marked with colored vertical lines. Initially, all groups' thresholds are 0.5, meaning predicted probabilities above 0.5 are classified as positive (shaded regions).
-      Statistical parity post-processing sets new thresholds to minimize differences among groups' rates of positive prediction. For this hypothetical data, statistical parity post-processing moves Group 2's threshold lower and Group 1's slightly higher, equalizing the shaded regions."),
-    plotOutput("thresh_ex_plot", height = 400, width = 400),
-    p("Further details of this optimization procedure are found in Cabreros, et al. (2023). Each of the post-processing options available are described below."),
-    h4("Statistical Parity PP"),
-    p("This method finds optimal thresholds such that the Predicted Positive Rate is equal across all levels of \\( G \\)."),
-    uiOutput("sp_form"),
-    h4("Equalized Odds PP"),
-    p("This method finds optimal thresholds such that both the True Positive and True Negative Rates are balanced across
-       all levels of \\( G \\)."),
-    p("True Positive Balance indicates:"),
-    uiOutput("tp_bal_form"),
-    p("and True Negative Balance indicates:"),
-    uiOutput("tn_bal_form"),
-    p("Equivalently, this method seeks to equalize False Negative and False Positive Rates across all levels of \\( G \\)"),
-    h4("Equalized Opportunity PP"),
-    p("This method finds optimal thresholds such that the True Positive Rate is the same across all levels of \\( G \\)."),
-    uiOutput("equal_opp_form"),
-    p("Equivalently, this method seeks to equalize False Negative Rates to be equal across all levels of \\( G \\)."),
-    h4("Equalized Error Rate PP"),
-    p("This method finds optimal thresholds such that the error rates are equal across all levels of \\( G \\).
-        Equalized error rates are achieved when each level of \\( G \\) has the same accuracy."),
-    uiOutput("err_form"),
-    
-    h3("Group probability analysis"),
-    p("When data with group probability columns are uploaded on the", tags$strong("Assessment"), "or", tags$strong("Correction: Post-Processing"), "tabs, the tool estimates the amount of (statistical) bias resulting from the use of probabilities instead of a fixed group variable.
-      Plots display a mean interval, rather than a dot, to indicate the range of possible mean values given the sensitivity parameters entered. Confidence intervals are likewise adjusted.
-      In general, wider ranges for \\(\\epsilon\\) and \\(\\epsilon'\\) correspond to scenarios with greater error in the group probabilities and thus wider mean and confidence intervals. Cells in the", tags$i("Group proportions conditional on \\(Y\\) or \\(\\hat{Y}\\)"), "table may be estimated from existing studies. 
-      For example, the top left cell is the proportion of group 1 among all observations having the outcome (\\(Y=1\\)). Alternatively, use the default table values, which are estimated from uploaded data using the group probability columns."),
-    # NOTE: add link to paper on arxiv
-    HTML('<p>See forthcoming manuscript for details of the sensitivity analysis approach and definitions of each sensitivity parameter. Note that for computational simplicity, the app uses a slightly different
-         bootstrapping procedure from that described in the paper. The app obtains bootstrap confidence intervals first and subsequently calculates bias corrections, rather than bias correcting as part of the bootstrapping procedure as described in the paper.</p>'),
-    
-    h3("Pre-Processing Methods"),
-    p("We have implemented a simple pre-processing approach adopted from Johndrow and Lum (2019) that ensures pairwise independence between
-       each covariate and the protected group \\( G \\). We note that Johndrow and Lum (2019) also describe a method to enforce
-       joint independence which is not implemented as of the current version of the tool."),
-    tags$br(),
-    h3("Citations"),
-    p("Irineo Cabreros, Joshua Snoke, Osonde A. Osoba, Inez Khan, and Marc N. Elliott,
-       Advancing Equitable Decisionmaking for the Department of Defense Through Fairness in Machine Learning,
-       RR-A1542-1, 2023. https://www.rand.org/pubs/research_reports/RRA1542-1.html"),
-    p("James E. Johndrow and Kristian Lum.
-       An algorithm for removing sensitive information: application to race-independent recidivism prediction,
-       Annals of Applied Statistics, Vol. 13, No. 1, March, 2019, pp. 189-220.")
-  )
+  # tabPanel(
+  #   "Correction: Pre-Processing",
+  #   tags$br(),
+  #   tags$br(),
+  #   tags$br(),
+  #   tags$br(),
+  #   sidebarLayout(
+  #     sidebarPanel(style = "position: fixed; width: 30%;",
+  #                  tags$br(),
+  #                  setBackgroundColor(
+  #                    color = c( "#f2fafd")
+  #                  ),
+  #                  tags$style(".well {
+  #                   background-color:	#fcfcfc;
+  #                   border-width: 1px;
+  #                   border-color: #1475AD;
+  #                   height: 85vh; 
+  #                   overflow-y: auto;
+  #                   color: #000000;
+  #                  }"),
+  #                  tags$b("Pre-Processing Data"),
+  #                  tags$br(),
+  #                  tags$p("Use this tab to tranform data before feeding it into a model. The dataset must include covariates and a variable named 'G'."),
+  #                  tags$p("Upload a dataset and select a method using the dropdown. Pre-processing will be done on all of the data with original row positions preserved.
+  #                         This tab will display a comparison between the original and preprocessed data for each input variable.
+  #                         The goal of pre-processing is to equalize each variable's distribution across groups (G)."),
+  #                  tags$p("For descriptions of pre-processing methods, see the Descriptions tab. Hover over plots for more information."),
+  #                  tags$br(),
+  #                  tags$b("Before Uploading Data"),
+  #                  tags$ul(
+  #                    tags$li("Outcome variables must be named `Y` in order to not be preprocessed."),
+  #                    tags$li("The protected group variable must be a categorical variable named 'G'."),
+  #                    tags$li("Group probability columns are not supported.")
+  #                  ),
+  #                  tags$i("Note: Any variables named 'Yhat' or 'Prob' will be dropped."),
+  #                  tags$br(),
+  #                  tags$br(),
+  #                  tags$b("Upload Data"),
+  #                  fileInput("preprocess_data", label = NULL, accept = '.csv'),
+  #                  tags$b("Confirm Variable Types"),
+  #                  uiOutput("var_types"),
+  #                  htmlOutput("cat_err_message", style = "color:red"),
+  #                  tags$b("Select Pre-Process Method"),
+  #                  selectInput("preprocess", label = NULL, choices = c("Johndrow and Lum (2019)")),
+  #                  tags$b("Compare Original/Pre-Processed Variables"),
+  #                  uiOutput("var_stats"),
+  #     ),
+  #     mainPanel(
+  #       tags$head(tags$style("#preproc_plt{height:75vh !important;}")),
+  #       fluidRow(
+  #         column(12,
+  #                shinycssloaders::withSpinner(plotlyOutput("preproc_plt", width = "100%"), type=7),
+  #         )
+  #       ),
+  #       tags$br(),
+  #       fluidRow(
+  #         column(2, uiOutput("show_preproc_plt_btn") ),
+  #         column(10, uiOutput("show_preproc_data_btwn") )
+  #       )
+  #     )
+  #   )
+  # ),
+  # tabPanel(
+  #   "Descriptions",
+  #   withMathJax(),
+  #   titlePanel("Definitions and descriptions"),
+  #   tags$br(),
+  #   p("This tab contains definitions of terms referred to in the previous tabs.
+  #      \\(Y\\) is the true outcome, \\(\\hat{Y}\\) is the predicted outcome, and \\(G\\) is the protected group.
+  #      For more detail on the methods implemented in this tool, please refer to the reports linked on the GitHub repository."),
+  #   h3("Performance Metrics"),
+  #   p("Overall performance metrics are calculated on the whole data set. Subgroup performance metrics are computed for each subpopulation defined by a level of the protected group \\(G\\)."),
+  #   h4("Accuracy"),
+  #   p("The proportion of correctly predicted outcomes."),
+  #   uiOutput("acc_form"),
+  #   h4("True Positive Rate"),
+  #   p("Among the population for whom \\(Y = 1\\), the proportion of correctly predicted positive outcomes. Equivalent to 1 minus the False Negative Rate."),
+  #   uiOutput("tp_rate"),
+  #   h4("True Negative Rate"),
+  #   p("Among the population for whom \\(Y = 0\\), the proportion of correctly predicted negative outcomes. Equivalent to 1 minus the False Positive Rate."),
+  #   uiOutput("tn_rate"),
+  #   h4("Selection Rate"),
+  #   p("The proportion of positive predicted outcomes."),
+  #   uiOutput("selrate_form"),
+  #   h4("Positive Predicted Value (PPV)"),
+  #   p("Among the population predicted to be positive, \\(\\hat{Y} = 1\\), the proportion that is truly positive."),
+  #   uiOutput("ppv_form"),
+  #   h4("Negative Predictive Value (NPV)"),
+  #   p("Among the population predicted to be negative, \\(\\hat{Y} = 0\\), the proportion that is truly negative."),
+  #   uiOutput("npv_form"),
+  #   
+  #   h3("Post-Processing Methods"),
+  #   p("The post processing methods find group-specific", tags$strong("thresholds"), "that minimize performance differences while optimizing overall performance."),
+  #   p(tags$strong("Thresholds determine when model predicted probabilities are classified as positive."), "Predicted probabilities above the threshold equal a positive prediction."),
+  #   p("For example, the plot below shows hypothetical distributions of predicted probabilities with group-specific thresholds marked with colored vertical lines. Initially, all groups' thresholds are 0.5, meaning predicted probabilities above 0.5 are classified as positive (shaded regions).
+  #     Statistical parity post-processing sets new thresholds to minimize differences among groups' rates of positive prediction. For this hypothetical data, statistical parity post-processing moves Group 2's threshold lower and Group 1's slightly higher, equalizing the shaded regions."),
+  #   plotOutput("thresh_ex_plot", height = 400, width = 400),
+  #   p("Further details of this optimization procedure are found in Cabreros, et al. (2023). Each of the post-processing options available are described below."),
+  #   h4("Statistical Parity PP"),
+  #   p("This method finds optimal thresholds such that the Predicted Positive Rate is equal across all levels of \\( G \\)."),
+  #   uiOutput("sp_form"),
+  #   h4("Equalized Odds PP"),
+  #   p("This method finds optimal thresholds such that both the True Positive and True Negative Rates are balanced across
+  #      all levels of \\( G \\)."),
+  #   p("True Positive Balance indicates:"),
+  #   uiOutput("tp_bal_form"),
+  #   p("and True Negative Balance indicates:"),
+  #   uiOutput("tn_bal_form"),
+  #   p("Equivalently, this method seeks to equalize False Negative and False Positive Rates across all levels of \\( G \\)"),
+  #   h4("Equalized Opportunity PP"),
+  #   p("This method finds optimal thresholds such that the True Positive Rate is the same across all levels of \\( G \\)."),
+  #   uiOutput("equal_opp_form"),
+  #   p("Equivalently, this method seeks to equalize False Negative Rates to be equal across all levels of \\( G \\)."),
+  #   h4("Equalized Error Rate PP"),
+  #   p("This method finds optimal thresholds such that the error rates are equal across all levels of \\( G \\).
+  #       Equalized error rates are achieved when each level of \\( G \\) has the same accuracy."),
+  #   uiOutput("err_form"),
+  #   
+  #   h3("Group probability analysis"),
+  #   p("When data with group probability columns are uploaded on the", tags$strong("Assessment"), "or", tags$strong("Correction: Post-Processing"), "tabs, the tool estimates the amount of (statistical) bias resulting from the use of probabilities instead of a fixed group variable.
+  #     Plots display a mean interval, rather than a dot, to indicate the range of possible mean values given the sensitivity parameters entered. Confidence intervals are likewise adjusted.
+  #     In general, wider ranges for \\(\\epsilon\\) and \\(\\epsilon'\\) correspond to scenarios with greater error in the group probabilities and thus wider mean and confidence intervals. Cells in the", tags$i("Group proportions conditional on \\(Y\\) or \\(\\hat{Y}\\)"), "table may be estimated from existing studies. 
+  #     For example, the top left cell is the proportion of group 1 among all observations having the outcome (\\(Y=1\\)). Alternatively, use the default table values, which are estimated from uploaded data using the group probability columns."),
+  #   # NOTE: add link to paper on arxiv
+  #   HTML('<p>See forthcoming manuscript for details of the sensitivity analysis approach and definitions of each sensitivity parameter. Note that for computational simplicity, the app uses a slightly different
+  #        bootstrapping procedure from that described in the paper. The app obtains bootstrap confidence intervals first and subsequently calculates bias corrections, rather than bias correcting as part of the bootstrapping procedure as described in the paper.</p>'),
+  #   
+  #   h3("Pre-Processing Methods"),
+  #   p("We have implemented a simple pre-processing approach adopted from Johndrow and Lum (2019) that ensures pairwise independence between
+  #      each covariate and the protected group \\( G \\). We note that Johndrow and Lum (2019) also describe a method to enforce
+  #      joint independence which is not implemented as of the current version of the tool."),
+  #   tags$br(),
+  #   h3("Citations"),
+  #   p("Irineo Cabreros, Joshua Snoke, Osonde A. Osoba, Inez Khan, and Marc N. Elliott,
+  #      Advancing Equitable Decisionmaking for the Department of Defense Through Fairness in Machine Learning,
+  #      RR-A1542-1, 2023. https://www.rand.org/pubs/research_reports/RRA1542-1.html"),
+  #   p("James E. Johndrow and Kristian Lum.
+  #      An algorithm for removing sensitive information: application to race-independent recidivism prediction,
+  #      Annals of Applied Statistics, Vol. 13, No. 1, March, 2019, pp. 189-220.")
+  # )
 )
 

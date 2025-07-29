@@ -47,14 +47,14 @@ metric_labs <- c("Selection Rate" = "Proportion of Positive Predictions",
                  "Negative Predictive Value" = "Proportion of Correct Negative Predictions",
                  "True Positive Rate" = "Proportion of True Positives",
                  "True Negative Rate" = "Proportion of True Negatives")
-metric_labs_diff <- c("Selection Rate" = "Difference in Proportion of Positive Predictions from Group", 
-                      "False Positive Rate" = "Difference in Proportion of False Positives from Group", 
-                      "False Negative Rate" = "Difference in Proportion of False Negatives from Group", 
-                      "Accuracy" = "Difference in Proportion of Correct Predictions from Group",
-                      "Positive Predictive Value" = "Difference in Proportion of Correct Positive Predictions from Group", 
-                      "Negative Predictive Value" = "Difference in Proportion of Correct Negative Predictions from Group",
-                      "True Positive Rate" = "Difference in Proportion of True Positives from Group",
-                      "True Negative Rate" = "Difference in Proportion of True Negatives from Group")
+metric_labs_diff <- c("Selection Rate" = "Difference in Proportion of Positive Predictions from Selected Group", 
+                      "False Positive Rate" = "Difference in Proportion of False Positives from Selected Group", 
+                      "False Negative Rate" = "Difference in Proportion of False Negatives from Selected Group", 
+                      "Accuracy" = "Difference in Proportion of Correct Predictions from Selected Group",
+                      "Positive Predictive Value" = "Difference in Proportion of Correct Positive Predictions from Selected Group", 
+                      "Negative Predictive Value" = "Difference in Proportion of Correct Negative Predictions from Selected Group",
+                      "True Positive Rate" = "Difference in Proportion of True Positives from Selected Group",
+                      "True Negative Rate" = "Difference in Proportion of True Negatives from Selected Group")
 
 # Validate data uploads
 validateDataset <- function(df, assessment = TRUE){
@@ -950,14 +950,16 @@ server <- function(input, output, session) {
       # Calculate values for each model
       param3_list <- lapply(dfs, function(dat) {
         group_cols <- grep('G', colnames(dat), value = TRUE)
-        apply(dat[,group_cols], 
+        apply(dat[, group_cols], 
               MARGIN = 2,
-              FUN=get_param3,
-              Y=dat$Y, 
-              Yhat=dat$Yhat)
+              FUN = get_param3,
+              Y = dat$Y, 
+              Yhat = dat$Yhat)
       })
       return(param3_list)
-    } else { return(NULL) }
+    } else{ 
+      return(NULL) 
+    }
   })
   
   # Calculate equity and performance metrics on post-processed data
@@ -966,16 +968,25 @@ server <- function(input, output, session) {
     dfs <- objs$dfs
     thresh <- objs$thresh
 
-    pro.methods <- c("Baseline", "Statistical Parity PP", "Equalized Odds PP", "Equalized Opp. PP", "Equalized Error Rate PP")
+    pro.methods <- c("Baseline", 
+                     "Statistical Parity PP", 
+                     "Equalized Odds PP", 
+                     "Equalized Opp. PP", 
+                     "Equalized Error Rate PP")
 
     # Make threshold df for plotting (thresholds are ordered in order of G_* columns)
     g_cols <- grep('G', colnames(dfs[[1]]), value = TRUE)
-    thresh.df <- data.frame(Method = rep(pro.methods, each =length(g_cols)),
-                            G = rep(str_split(g_cols, "G_", simplify = T)[,2], times = length(pro.methods)), 
+    thresh.df <- data.frame(Method = rep(pro.methods, 
+                                         each =length(g_cols)),
+                            G = rep(str_split(g_cols, "G_", simplify = T)[,2], 
+                                    times = length(pro.methods)), 
                             Threshold = thresh)
     
     # Bootstrap equity and performance metrics
     return_metrics <- get_eq_per_uncertainty(dfs, pro.methods = pro.methods)
+    ## HARD CODED - No differences for post-processing
+    return_metrics = return_metrics %>%
+      filter(difference == 'None Selected')
     return(list(metrics = return_metrics, methods = pro.methods, thresh.df = thresh.df))
   })
   # Add bias corrections if group probability data
@@ -1014,23 +1025,43 @@ server <- function(input, output, session) {
             names(marg_cilow) <- names(marg_cihigh) <- names(marg_mean) <- dat_marg$metric
             
             dat_gp <- select(dat_test, !!sym(g), Y, Yhat) %>%
-              mutate(G_prob = !!sym(g)) %>% select(-!!sym(g))
+              mutate(G_prob = !!sym(g)) %>% 
+              select(-!!sym(g))
             
             #### Get min/max valid epsilon, epsilon' combinations for each metric
-            epsilon_minmax <- get_minmax_epsilon(data_gp=dat_gp, epsilon = seq(min(epsilon), max(epsilon), 0.01), epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01))
+            epsilon_minmax <- get_minmax_epsilon(data_gp = dat_gp, 
+                                                 epsilon = seq(min(epsilon), max(epsilon), 0.01), 
+                                                 epsilon_prime = seq(min(epsilon_prime), max(epsilon_prime), 0.01),
+                                                 relative_eps = input$pp_epsilon_rel)
             
             #### Mean bias corrections
-            mean_bclow <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_mean, metric_vals = metrics_mean,
-                                         epsilon = epsilon_minmax$epsilon$min_vals, epsilon_prime=epsilon_minmax$epsilon_prime$max_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
-            mean_bchigh <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_mean, metric_vals = metrics_mean,
-                                          epsilon = epsilon_minmax$epsilon$max_vals, epsilon_prime=epsilon_minmax$epsilon_prime$min_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            mean_bclow <- get_epsilon_bc(data_gp = dat_gp, 
+                                         metric_marg = marg_mean, 
+                                         metric_vals = metrics_mean,
+                                         epsilon = epsilon_minmax$epsilon$min_vals, 
+                                         epsilon_prime = epsilon_minmax$epsilon_prime$max_vals, 
+                                         param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            mean_bchigh <- get_epsilon_bc(data_gp = dat_gp, 
+                                          metric_marg = marg_mean, 
+                                          metric_vals = metrics_mean,
+                                          epsilon = epsilon_minmax$epsilon$max_vals, 
+                                          epsilon_prime=epsilon_minmax$epsilon_prime$min_vals, 
+                                          param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             
             #### Low CI endpoint bias correction
-            cilow_bc <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_cilow, metric_vals = metrics_cilow,
-                                       epsilon = epsilon_minmax$epsilon$min_vals, epsilon_prime=epsilon_minmax$epsilon_prime$max_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            cilow_bc <- get_epsilon_bc(data_gp = dat_gp, 
+                                       metric_marg = marg_cilow, 
+                                       metric_vals = metrics_cilow,
+                                       epsilon = epsilon_minmax$epsilon$min_vals, 
+                                       epsilon_prime = epsilon_minmax$epsilon_prime$max_vals, 
+                                       param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             #### High CI endpoint bias correction
-            cihigh_bc <- get_epsilon_bc(data_gp = dat_gp, metric_marg = marg_cihigh, metric_vals = metrics_cihigh,
-                                        epsilon=epsilon_minmax$epsilon$max_vals, epsilon_prime=epsilon_minmax$epsilon_prime$min_vals, param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
+            cihigh_bc <- get_epsilon_bc(data_gp = dat_gp, 
+                                        metric_marg = marg_cihigh, 
+                                        metric_vals = metrics_cihigh,
+                                        epsilon = epsilon_minmax$epsilon$max_vals, 
+                                        epsilon_prime = epsilon_minmax$epsilon_prime$min_vals, 
+                                        param_3 = unlist(as.vector(select(param3_update, !!sym(g)))))
             #### Combine results in dataframe
             gp_df <- data.frame(
               metric = dat_bs$metric,
@@ -1048,9 +1079,9 @@ server <- function(input, output, session) {
           gp_res %>% bind_rows(.id = "G")
         })
         names(pp_bc) <- pp_bs$methods
-        pp_full_bc <- pp_bc %>% bind_rows(.id = "Method") %>% bind_rows(
-          mutate(overall_metrics, bc_low = NA_real_, bc_high = NA_real_)
-        )
+        pp_full_bc <- pp_bc %>% 
+        bind_rows(.id = "Method") %>% 
+        bind_rows(mutate(overall_metrics, bc_low = NA_real_, bc_high = NA_real_))
         
         return(list(tables = pp_full_bc, is_probs = T))
       } else { return(list(tables = NULL, is_probs = T)) }
@@ -1336,6 +1367,13 @@ server <- function(input, output, session) {
             placement = "bottom"
           ))
         ),
+        radioButtons("pp_epsilon_rel", 
+                     label = 'Compute errors as relative (to mean group proportion) or absolute', 
+                     choiceNames = c('Relative',
+                                     'Absolute'),
+                     choiceValues = c(TRUE,
+                                      FALSE),
+                     selected = c('Relative' = TRUE)),
         sliderInput("pp_epsilon", label=HTML("&#949"), min=-0.1, max=0.1, value=c(-0.02,0.02), step=0.005),
         sliderInput("pp_epsilonp", label=HTML("&#949'"), min=-0.1, max=0.1, value=c(-0.02,0.02), step=0.005),
         shinyBS::bsCollapse(id = "pp_collapse_param3",
