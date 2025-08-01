@@ -489,7 +489,7 @@ server <- function(input, output, session) {
       equity.df$label <- paste0(equity.df$G, equity.df$Method)
       num_mdls <- length(levels(as.factor(equity.df$Method)))
       
-      if(interface == "Models") {
+      if(interface == "Groups") {
         ### Models: placeholder for calculating position_dodge final y values to enable hover on the final plot
         if(tables_list$is_probs) {
           equity.plt.placeholder <- ggplot(equity.df, aes(x = mean_est, y = Method, color = G_display, label = paste0(G, Method))) +
@@ -535,7 +535,7 @@ server <- function(input, output, session) {
             coord_cartesian(ylim = c(0.5, num_mdls + 0.5)) 
         }
         
-      } else if(interface=="Groups") {
+      } else if(interface == "Models") {
         ### Groups: placeholder for calculating position_dodge
         if(tables_list$is_probs) {
           equity.plt.placeholder <- ggplot(equity.df, aes(x = mean_est, y = G_display, color = Method, label = paste0(G, Method))) +
@@ -587,7 +587,7 @@ server <- function(input, output, session) {
       perform.df$label <- paste0(perform.df$G, perform.df$Method)
       num_gps <- length(levels(as.factor(equity.df$G_display)))
       
-      if(interface == "Models") {
+      if(interface == "Groups") {
         ### Models: placeholder plot -- use to keep variable names consistent with jittered plots for hover function
         perform.plt.placeholder <- ggplot(perform.df, aes(y = Method, label = paste0(G, Method))) +
           geom_pointrange(aes(x = mean_est, xmin = ci_low, xmax = ci_high), fatten = 4, lwd = 1) +
@@ -609,7 +609,7 @@ server <- function(input, output, session) {
           perform.plt = perform.plt +
             coord_cartesian(xlim = c(0, 1)) 
         }
-      } else if(interface == "Groups") {
+      } else if(interface == "Models") {
         ### Groups: placeholder for calculating position_dodge
         if(tables_list$is_probs) {
           perform.plt.placeholder <- ggplot(perform.df, aes(y = G, color = Method, label = paste0(G, Method))) +
