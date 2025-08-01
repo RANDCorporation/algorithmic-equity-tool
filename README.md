@@ -20,11 +20,6 @@ The following paper provides the methodological innovations utilized in the tool
 
 Download the code from this repository to run this application locally. This application requires [R be installed](https://cran.r-project.org/doc/FAQ/R-FAQ.html#How-can-R-be-installed_003f) to run. It is likely that running the application locally will be preferred when the required data cannot be exported, for instance, due to privacy considerations.
 
-Individuals who would like to quickly evaluate the tool with datasets that are not private can use this version posted to shinyapps.io:
-
-**[RAND Algorithmic Equity Tool - Public Version](https://rand.shinyapps.io/rand-ml-equity-tool/)**
-
-
 ## Contact
 Reach out to [Joshua Snoke](https://www.rand.org/about/people/s/snoke_joshua.html) for questions related to this repository.
 
