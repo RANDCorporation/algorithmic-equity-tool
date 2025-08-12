@@ -17,9 +17,9 @@ library(gridExtra)
 library(openxlsx)
 library(plotly)
 
-source('pre_process_functions.R')
-source('stat_functions_probs.R')
-source('bootstrap_sample_functions.R')
+source('R/pre_process_functions.R')
+source('R/stat_functions_probs.R')
+source('R/bootstrap_sample_functions.R')
 
 
 # Colors for plots
