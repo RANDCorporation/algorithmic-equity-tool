@@ -1,8 +1,8 @@
-# RAND Algorithmic Equity Tool
+# RAND Tool for Evaluating Algorithmic Bias
 
 ## Introduction
 
-In recent years, there has been a growing awareness that Machine Learning (ML) algorithms can reinforce or exacerbate human biases. The RAND Algorithmic Equity Tool was developed to help assess and correct biases in algorithms that assist in decision-making processes. In particular, the tool helps users visualize tradeoffs between different types of fairness and overall model performance. It also provides tools to mitigate bias through post-processing or pre-processing.
+In recent years, there has been a growing awareness that Machine Learning (ML) algorithms can reinforce or exacerbate human biases. The RAND Tool for Evaluating Algorithmic Bias was developed to help assess and correct biases in algorithms that assist in decision-making processes. In particular, the tool helps users visualize tradeoffs between different types of fairness and overall model performance. It also provides tools to mitigate bias through post-processing or pre-processing.
 
 This tool was originally produced as part of a research effort for RAND, with the goal of assisting the Department of Defense (DoD) as they invest in the development of ML algorithms for a growing number of applications. The tool has been extended to address the issue of using proxy measures for group labels, which is common in healthcare settings where information on race and ethnicity is often missing or imputed. The two companion reports further discusses this tool, its creation, and its development.
 
