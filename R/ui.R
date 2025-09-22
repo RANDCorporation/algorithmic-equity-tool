@@ -3,7 +3,7 @@ library(shinyWidgets)
 library(plotly)
 
 ui <- navbarPage(
-  title = "RAND Algorithmic Equity Tool",
+  title = "RAND Tool for Evaluating Algorithmic Bias",
   theme = shinythemes::shinytheme("flatly"),
                     # Styling for navbar
   header = tags$head(tags$style(HTML('.navbar-static-top {background-color: #1475AD;}',
@@ -41,7 +41,7 @@ ui <- navbarPage(
     tags$br(),
     h3("Introduction"),
     h4("In recent years, there has been a growing awareness that Machine Learning (ML) algorithms can reinforce or exacerbate human biases. 
-       The RAND Algorithmic Equity Tool was developed to help assess and correct biases in algorithms that assist in decision-making processes. 
+       The RAND Tool for Evaluating Algorithmic Bias was developed to help assess and correct biases in algorithms that assist in decision-making processes. 
        In particular, the tool helps users visualize tradeoffs between different types of fairness and overall model performance. It also provides tools to 
        mitigate bias through post-processing or pre-processing."
     ), 
